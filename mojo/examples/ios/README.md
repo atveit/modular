@@ -97,10 +97,10 @@ linking, libc-output correctness, or execution on Simulator/device.
 
 For this C-ABI fixture, `mojo build --emit exe` is not an iOS linker probe: it
 intentionally has no `main`, so the driver stops with `module does not contain
-a 'main' function`. `--emit shared-lib` reaches the current Mojo driver linker
-path, which invokes the macOS linker and rejects an iOS or iOS Simulator
-object. Until an iOS-aware shared-library driver/runtime exists, emit an object
-or archive and link it with the matching Xcode SDK as this fixture does.
+a 'main' function`. The driver now rejects `--emit shared-lib` for iOS with an
+actionable diagnostic before the host macOS linker is invoked. Until an
+iOS-aware shared-library driver/runtime exists, emit an object or archive and
+link it with the matching Xcode SDK as this fixture does.
 
 ## Run the discovery smoke test
 

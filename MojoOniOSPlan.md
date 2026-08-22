@@ -250,9 +250,9 @@ silently selecting the hard-coded macOS AIR sidecar. The earlier sidecar
 failure remains useful historical evidence for the compiler seam, but neither
 path is an iOS AIR/metallib implementation. For the current runtime-free
 export fixture, `--emit exe` stops before linking because there is no `main`,
-while `--emit shared-lib` reaches the legacy macOS linker path and rejects the
-iOS object; the supported workaround remains object/static-lib emission
-followed by the matching Apple SDK linker.
+while `--emit shared-lib` now stops with an actionable iOS diagnostic before the
+legacy macOS linker path; the supported workaround remains object/static-lib
+emission followed by the matching Apple SDK linker.
 
 ### Scrutiny-adjusted next steps
 

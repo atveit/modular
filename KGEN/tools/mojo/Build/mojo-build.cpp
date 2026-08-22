@@ -656,6 +656,21 @@ static int generateDSYM(const State &state, StringRef binaryOutputPath) {
 static int linkOutput(OutputType outputType, const State &state,
                       const llvm::opt::InputArgList &args,
                       const CompilationOptions &options, BufferRef &archive) {
+  // The shared-library path still uses the host linker and host CompilerRT.
+  // Do not let an explicit iOS target reach that path and fail with a
+  // misleading macOS/iOS platform mismatch. Static archives are the supported
+  // hand-off until an iOS-aware runtime and linker configuration exist.
+  if (outputType == OutputType::sharedLibrary) {
+    llvm::Triple targetTriple(options.targetTriple);
+    ApplePlatform platform = getApplePlatform(targetTriple);
+    if (platform == ApplePlatform::IOSDevice ||
+        platform == ApplePlatform::IOSSimulator) {
+      return state.reportError(
+          "iOS shared-library emission is not supported by this Mojo driver; "
+          "use --emit static-lib and link with the matching Apple SDK");
+    }
+  }
+
   // For now we just use the system C compiler as the linker on non-windows,
   // which makes it a tad bit easier to link in the necessary system and
   // cpuDevice dependencies of KGENCompilerRT.
