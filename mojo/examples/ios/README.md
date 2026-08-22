@@ -87,7 +87,10 @@ The harness invokes `xcrun devicectl device install app` and
 `xcrun devicectl device process launch --console`. It does not commit signing
 identities, team IDs, device identifiers, profiles, or entitlements. A USB
 cable is the recommended first pairing path; after pairing, Xcode can use a
-wireless device on the same network.
+wireless device on the same network. Apple’s current Device Hub guidance says
+first-time wireless pairing requires iOS/iPadOS 27 or later; otherwise use a
+cable for pairing, then disconnect it and run over Wi-Fi with IPv6 enabled on
+the same network. See [Apple’s Device Hub pairing guidance](https://developer.apple.com/documentation/xcode/pairing-your-devices-with-your-mac).
 
 This first physical-device gate does not require an Xcode project, the Xcode
 GUI, or `xcodebuild`; it uses the iPhoneOS SDK command-line tools from the

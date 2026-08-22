@@ -151,6 +151,7 @@ larger destination.
 | D5 — Device object/archive | `arm64-apple-ios17.0` object and static archive | `IOS` load command, conservative `apple-a7` baseline, device clang link, and no accidental Simulator slice |
 | D5a — Physical device artifact | Development-signed runtime-free device `.app` plus install/launch transcript | Paired iPhone/iPad, Developer Mode, provisioning/signing, `devicectl` install, and process launch with captured output |
 | D5b — Physical visible “Hello from Mojo” | Development-signed SwiftUI `.app` showing Mojo-returned text and `20 + 22 = 42` | Device SwiftUI link, signing/install/launch, and a captured on-device screen or UI-test assertion |
+| D5c — Optional internal TestFlight tracer | Distribution-signed IPA containing the SwiftUI tracer app | App Store Connect record, application identifier in the profile, successful upload/processing, and installation through an internal TestFlight group |
 | D6 — Static runtime and core stdlib | App-safe static CompilerRT plus supported stdlib subset | Allocation, errors, strings, files, repeated initialization, and threading on Simulator without unresolved runtime symbols |
 | D7 — CPU/SIMD/threading package | Reusable core library with correctness tests and device benchmark app | NEON/vector inspection, multicore correctness/scaling, C-boundary overhead, and no unexplained Swift regression |
 | D8 — Direct C SDK products | Darwin/CoreFoundation/CoreGraphics/Accelerate/`os` headers and package products | iOS 17 compile/link tests, ABI layout checks, availability metadata, and at least one runtime test per product |
@@ -211,6 +212,14 @@ claims and the immediate order of work:
    D5b. Both have artifact-only modes and explicit opt-in signing paths. The
    gates do not require an Xcode project or the Xcode GUI: they use the SDK
    command-line tools (`xcrun`, `clang`, `swiftc`, `codesign`, and `devicectl`).
+   Device connectivity must retain a cable fallback: Apple’s current Device
+   Hub documentation requires iOS/iPadOS 27 or later for first-time wireless
+   pairing, while a device paired by cable can subsequently run over Wi-Fi on
+   the same network. See [Apple’s pairing guidance](https://developer.apple.com/documentation/xcode/pairing-your-devices-with-your-mac).
+   TestFlight is an optional D5c distribution proof after D5b: it uploads a
+   complete, distribution-signed app containing Mojo code, not an XCFramework
+   or Mojo library by itself. Keep external TestFlight review and public-beta
+   claims separate from this internal tracer milestone.
 5. **Treat D8 as a product-by-product ladder.** The Accelerate/vDSP adapter is
    currently compile/link evidence. Add Simulator execution, then device
    execution and a benchmark before marking that product runtime-supported.
@@ -417,6 +426,13 @@ execution, and clean process exit without unresolved runtime symbols.
    alternate build systems. See
    [Apple XCFramework guidance](https://developer.apple.com/documentation/xcode/creating-a-multi-platform-binary-framework-bundle).
 
+9. Optionally upload the visible tracer app as a distribution-signed TestFlight
+   build after the physical-device gate. Start with an internal tester group;
+   external testing may require beta review and the app must be suitable for
+   public distribution. TestFlight validates signing, App Store Connect
+   processing, and over-the-air installation, but does not expand Mojo runtime
+   or standard-library coverage.
+
 The low-level Mojo library, C consumer, archive, app bundle, and physical
 device launch should remain reproducible with command-line tools. `xcodebuild`
 and an Xcode project are optional conveniences for the SwiftUI host, XCTest,
@@ -615,7 +631,7 @@ until its corresponding tests run in the intended target environment.
 | Compatibility | No macOS or Linux regression; configurable deployment target with iOS 17 as the tested baseline | Every phase |
 | CPU performance | On-device scalar, SIMD, allocation, C-boundary, and threading baselines; recorded toolchain, device, thermal, latency, throughput, memory, and energy context | 5 |
 | Metal performance | Correctness and on-device measurements against MSL/MPS only after the GPU phase; no Simulator performance claims | 7 |
-| Distribution | No JIT, Python, compiler binaries, loose dynamic libraries, private Apple APIs, user-specific signing material, or merged device/Simulator `lipo` binary | 4–8 |
+| Distribution | No JIT, Python, compiler binaries, loose dynamic libraries, private Apple APIs, user-specific signing material, or merged device/Simulator `lipo` binary; optional internal TestFlight build uses distribution signing and a complete app bundle | 4–8 and D5c |
 
 ## Assumptions and Follow-Up Platforms
 
