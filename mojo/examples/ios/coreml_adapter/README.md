@@ -33,6 +33,9 @@ Success requires all of the following for each SDK:
 3. An arm64 Mach-O executable with matching platform metadata.
 4. The exported `mojo_coreml_framework_anchor` symbol and a
    `CoreML.framework/CoreML` load command.
+5. An unresolved public `_OBJC_CLASS_$_MLModel` reference in both the adapter
+   object and executable, showing that the link is not merely an unused
+   framework flag.
 
 The fixture is source-only because this checkout does not register
 `rules_apple`/`rules_swift`. It is an adoption seam for a future app target,

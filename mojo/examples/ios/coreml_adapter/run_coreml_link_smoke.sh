@@ -64,6 +64,9 @@ build_target() {
   file "${adapter_object}" "${executable_path}"
   nm -gU "${adapter_object}" | grep -E '(_?mojo_coreml_framework_anchor)$'
   nm -gU "${executable_path}" | grep -E '(_?mojo_coreml_framework_anchor)$'
+  log "checking public MLModel class reference"
+  nm -u "${adapter_object}" | grep -F '_OBJC_CLASS_$_MLModel'
+  nm -u "${executable_path}" | grep -F '_OBJC_CLASS_$_MLModel'
   if command -v vtool >/dev/null 2>&1; then
     vtool -show-build "${executable_path}" | sed -n '1,100p'
   fi
