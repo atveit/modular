@@ -18,14 +18,14 @@ def _mojo_ios_static_library_impl(ctx):
 
     command = """
 set -euo pipefail
-sdk_name=iphonesimulator
+sdk_name="{sdk_name}"
 sdk_path="$(/usr/bin/xcrun --sdk "${{sdk_name}}" --show-sdk-path)"
 clang_bin="$(/usr/bin/xcrun --sdk "${{sdk_name}}" --find clang)"
 libtool_bin="$(/usr/bin/xcrun --sdk "${{sdk_name}}" --find libtool)"
 ar_bin="$(/usr/bin/xcrun --sdk "${{sdk_name}}" --find ar)"
 vtool_bin="$(/usr/bin/xcrun --find vtool)"
 
-CC="${{clang_bin}}" CXX="${{clang_bin}}" "{mojo}" build -I "mojo/stdlib" --target-triple "{triple}" --target-cpu apple-m1 --emit object "{src}" -o "{object_file}"
+CC="${{clang_bin}}" CXX="${{clang_bin}}" "{mojo}" build -I "mojo/stdlib" --target-triple "{triple}" --target-cpu "{target_cpu}" --emit object "{src}" -o "{object_file}"
 "${{libtool_bin}}" -static -o "{archive}" "{object_file}"
 test -s "{object_file}"
 test -s "{archive}"
@@ -40,7 +40,7 @@ trap 'rm -rf "${{extract_dir}}"' EXIT
   cd "${{extract_dir}}"
   "${{ar_bin}}" -x "${{archive_abs}}"
 )
-"${{vtool_bin}}" -show-build "${{extract_dir}}/${{member}}" | grep -q 'platform IOSSIMULATOR'
+"${{vtool_bin}}" -show-build "${{extract_dir}}/${{member}}" | grep -q 'platform {platform}'
 nm -gU "{object_file}" | grep -Eq '(_?mojo_add)$'
 nm -gU "{object_file}" | grep -Eq '(_?mojo_hello_utf8)$'
 """.format(
@@ -51,6 +51,9 @@ nm -gU "{object_file}" | grep -Eq '(_?mojo_hello_utf8)$'
         object_file = object_file.path,
         src = ctx.file.src.path,
         triple = ctx.attr.target_triple,
+        target_cpu = ctx.attr.target_cpu,
+        sdk_name = ctx.attr.sdk_name,
+        platform = ctx.attr.platform,
     )
 
     action_env = dict(getattr(ctx.toolchains["@rules_mojo//:toolchain_type"], "build_env", {}))
@@ -91,6 +94,9 @@ mojo_ios_static_library = rule(
         "src": attr.label(allow_single_file = [".mojo"], mandatory = True),
         "header": attr.label(allow_single_file = [".h"], mandatory = True),
         "target_triple": attr.string(default = "arm64-apple-ios17.0-simulator"),
+        "target_cpu": attr.string(default = "apple-m1"),
+        "sdk_name": attr.string(default = "iphonesimulator"),
+        "platform": attr.string(default = "IOSSIMULATOR"),
         "_stdlib": attr.label(
             default = Label("//mojo/stdlib/std:std_srcs"),
             allow_files = [".mojo"],

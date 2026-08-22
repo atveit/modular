@@ -63,6 +63,17 @@ mojo_ios_static_library(
     tags = ["manual"],
 )
 
+mojo_ios_static_library(
+    name = "mojo_ios_static_library_device_smoke",
+    src = "mojo_ios_smoke.mojo",
+    header = "mojo_ios_smoke.h",
+    platform = "IOS",
+    sdk_name = "iphoneos",
+    target_cpu = "apple-a7",
+    target_triple = "arm64-apple-ios17.0",
+    tags = ["manual"],
+)
+
 # Diagnostic archive only. This recompiles explicit sources with Xcode's
 # iPhoneSimulator SDK; it never repackages CompilerRTIOSStatic's host archive.
 compilerrt_ios_simulator_bootstrap_archive(

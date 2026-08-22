@@ -299,6 +299,9 @@ direct compiler-binary visibility exception. It carries the pinned stdlib
 sources into the action, emits an `arm64-apple-ios17.0-simulator` object, makes
 an archive with the Simulator SDK `libtool`, and checks the extracted member's
 `IOSSIMULATOR`/minOS 17 metadata plus `_mojo_add` and `_mojo_hello_utf8`. A
+parallel example target uses the same action for
+`arm64-apple-ios17.0`/`apple-a7` with the iPhoneOS SDK and checks the `IOS`
+load command, so both canonical slices now have a Bazel archive seam. A
 separate KGEN source filegroup exposes only the four SDK-bootstrap CompilerRT
 sources. The action is deliberately local/non-sandboxed and discovers Xcode
 SDK tools through `xcrun`; therefore this is a real Bazel archive artifact but

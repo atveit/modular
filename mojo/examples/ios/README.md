@@ -574,12 +574,22 @@ Mojo compiler should not embed provisioning profiles or signing identities.
 `//mojo/examples/ios:mojo_ios_static_library_smoke` is an example-local
 prototype of that action. Its rule declares the runtime-free Mojo source,
 stdlib sources, and C header as inputs, requests
-`arm64-apple-ios17.0-simulator` object emission from the registered Mojo
-toolchain, invokes the Simulator SDK `libtool`, and validates the extracted
-archive member's `IOSSIMULATOR` metadata plus the two C ABI exports. It has no
-signing, app, or Mojo-runtime behavior. The current action is explicitly local
-and non-sandboxed because `xcrun` discovers the host Xcode SDK tools at
-execution time.
+`arm64-apple-ios17.0-simulator`/`apple-m1` object emission from the registered
+Mojo toolchain, invokes the Simulator SDK `libtool`, and validates the
+extracted archive member's `IOSSIMULATOR` metadata plus the two C ABI exports.
+`//mojo/examples/ios:mojo_ios_static_library_device_smoke` uses the same rule
+for `arm64-apple-ios17.0`/`apple-a7` and checks the `IOS` load command. Both
+targets have no signing, app, or Mojo-runtime behavior. The current actions are
+explicitly local and non-sandboxed because `xcrun` discovers the host Xcode SDK
+tools at execution time. Build both archive slices with:
+
+```sh
+./bazelw build --config=prebuilt-mojo \
+  //mojo/examples/ios:mojo_ios_static_library_smoke \
+  //mojo/examples/ios:mojo_ios_static_library_device_smoke
+```
+
+The generated archives and headers are under `bazel-bin/mojo/examples/ios/`.
 
 The toolchain supplies the compiler and its transitive runfiles as declared
 action tools. Therefore `--config=prebuilt-mojo` can use a declared prebuilt
