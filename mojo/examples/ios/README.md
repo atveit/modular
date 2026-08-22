@@ -532,6 +532,20 @@ The marker establishes construction/formatting of this emitted `Error` probe
 with stack traces unavailable. It does not validate throwing, error reporting,
 stack capture, `initialize_runtime`, or AsyncRT.
 
+`run_compilerrt_ios_core_seed_probe.sh` is the composite non-AsyncRT gate. It
+builds one SDK-native archive containing `MemoryIOS`, `Initialize`, `GlobalsIOS`,
+and `StackTraceIOS`, then links both emitted Mojo probes into one Simulator app:
+
+```sh
+RUN_SIMULATOR=1 MOJO_IOS_CORE_SEED_PROBE_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_core_seed_probe.sh
+```
+
+This proves the two narrow candidate paths coexist in one archive and can
+complete their basic global teardown/Error-construction sequence. It is not a
+production static runtime, does not enable throwing or stack capture, and does
+not invoke `initialize_runtime` or AsyncRT.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,

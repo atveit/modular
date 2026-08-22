@@ -7,6 +7,31 @@ module(
 bazel_dep(name = "modular", version = "0")
 local_path_override(module_name = "modular", path = "__MODULAR_ROOT__")
 
+# Match the root module's intended rules_mojo source locally. This is a
+# disposable override that tests whether direct selection can satisfy the root's
+# versionless dependency without editing the root MODULE.bazel.
+bazel_dep(name = "rules_mojo", version = "__RULES_MOJO_VERSION__")
+local_path_override(module_name = "rules_mojo", path = "__RULES_MOJO_ROOT__")
+
+# The root also has two archive-overridden dependencies without versions. Pin
+# them only in this disposable top module to test whether resolution advances.
+bazel_dep(name = "sysroot-jammy-aarch64", version = "0.0.0")
+local_path_override(
+    module_name = "sysroot-jammy-aarch64",
+    path = "__SYSROOT_JAMMY_AARCH64_ROOT__",
+)
+bazel_dep(name = "sysroot-jammy-x86_64", version = "0.0.0")
+local_path_override(
+    module_name = "sysroot-jammy-x86_64",
+    path = "__SYSROOT_JAMMY_X86_64_ROOT__",
+)
+
+# `modular` references this from its registered Mojo toolchain, but declares it
+# as a dev dependency. Make the already-resolved patched source visible only
+# to this disposable consuming module.
+bazel_dep(name = "rules_mypy", version = "__RULES_MYPY_VERSION__")
+local_path_override(module_name = "rules_mypy", path = "__RULES_MYPY_ROOT__")
+
 bazel_dep(name = "rules_apple", version = "4.5.3", repo_name = "rules_apple")
 bazel_dep(
     name = "rules_swift",

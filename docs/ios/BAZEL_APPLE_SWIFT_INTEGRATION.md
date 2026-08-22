@@ -73,19 +73,28 @@ are macOS Mach-O, not iOS slices.
 ## Root-adoption compatibility matrix
 
 The current evidence does not support a no-churn root adoption path that keeps
-the root protobuf selection at 33.5:
+the root protobuf selection at 33.5. A disposable root dependency-owner trial
+with protobuf 34.0.bcr.1 showed that the existing protobuf development-dep
+patch is not required for module resolution: both a narrowly ported patch and
+the no-patch control resolved, and the no-patch control passed the focused
+`CompilerRTIOSStatic` build plus 70 KGEN unit tests. This does not approve a
+root upgrade; the Apple transition still fails under the repository's Bazel 10
+pre-release.
 
 | Isolated control | Bazel 9.2 result | Root-graph implication |
 | --- | --- | --- |
 | `rules_apple` 2.5.0 / `rules_swift` 1.9.1 | Resolver upgraded to 4.1.0 / 3.1.2 and warned that direct versions were unmet; analysis hit `apple_crosstool_top` again | 2.x is not a viable way to hold the existing graph without stronger overrides |
 | `rules_apple` 4.3.3 / `rules_swift` 3.1.2 | Analysis reached Apple rule implementation, then failed because Bazel's `apple` fragment lacks `multi_arch_platform` | Avoids the protobuf 34 requirement but is still Bazel-9 incompatible |
 | `rules_apple` 4.5.3 / `rules_swift` 3.5.0 | Query, analysis, and isolated Simulator IPA build pass | Requires `protobuf` 34.0.bcr.1 through rules_swift 3.5.0, so root dependency selection changes |
+| Disposable root with protobuf 34.0.bcr.1 and no protobuf patch | Graph, `CompilerRTIOSStatic`, and 70 KGEN tests pass; minimal UIKit app analysis fails because `//command_line_option:apple_platforms` is not a valid transition output under Bazel 10 | The protobuf patch can be reviewed separately; the Apple-rules/Bazel-10 transition remains the active root blocker |
 
 The practical adoption sequence is therefore a dependency-owner branch that
-accepts and reviews the protobuf 34 upgrade, pins the compatible Apple/Swift
-pair, regenerates the root lockfile, and validates the full repository's
-existing Bazel tests before wiring an iOS target. A transition patch or an
-older Apple-rules pin is not a safe substitute for that graph review.
+accepts and reviews the protobuf 34 upgrade (including removing or porting the
+old development-dependency patch), pins an Apple/Swift pair compatible with
+the selected Bazel release, regenerates the root lockfile, and validates the
+full repository's existing Bazel tests before wiring an iOS target. A local
+transition patch or an older Apple-rules pin is not a safe substitute for that
+graph review.
 
 ## Present blockers and next action
 
@@ -148,11 +157,12 @@ top-level module with local-path dependency `modular`, then gives an Apple app
 a `cc_library` dependency on the local `mojo_ios_static_library_smoke` target.
 Unlike the archive-consumer control, it never copies `bazel-bin` artifacts.
 
-The current control stops at module resolution, before any Apple platform or
-SDK analysis: the root `modular` module declares `bazel_dep(name =
-"rules_mojo")` without a version. That is accepted for the main module but
-cannot be consumed from a dependent module, which reports a bad versionless
-`rules_mojo` dependency. The smallest remaining blocker for a true same-graph
-Apple consumer is therefore making the root module dependency graph consumable
-under Bzlmod (with dependency-owner review); no root module change was made by
-the control.
+The control is a ladder of disposable overrides. With no overrides, module
+resolution stops because the root declares versionless `rules_mojo`; a direct
+local override advances past that dependency. Dynamic local overrides for the
+two versionless Jammy sysroot modules then make the query pass, but `--nobuild`
+stops at the registered Mojo toolchain because the consumed `modular` module
+cannot see its `@rules_mypy` load. A top-level `rules_mypy` override does not
+repair a dependency's development-dependency repository mapping. These results
+are all before Apple SDK/app analysis and require a dependency-owner Bzlmod
+change; no root module or lockfile was edited by the control.

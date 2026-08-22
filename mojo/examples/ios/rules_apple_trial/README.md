@@ -42,11 +42,30 @@ that depends on the local `modular` module and places
 copy a `bazel-bin` archive. The control stops at analysis, so a passing result
 does not claim app build, signing, installation, or execution.
 
-At present this control reports `BLOCKED` before query analysis: the root
-module's versionless `bazel_dep(name = "rules_mojo")` is valid only at the root
-but cannot be resolved when `modular` is a local module dependency. A
-dependency-owner change to make the root module consumable is required before
-this provider seam can be analyzed together with Apple rules.
+Without overrides this control reports `BLOCKED` before query analysis: the
+root module's versionless `bazel_dep(name = "rules_mojo")` is valid only at the
+root but cannot be resolved when `modular` is a local module dependency. The
+disposable `rules_mojo` and Jammy sysroot overrides make the query pass, while
+the additional `rules_mypy` override still leaves `--nobuild` blocked because
+the consumed module's development-dependency repository mapping is not visible
+to its registered Mojo toolchain. A dependency-owner change to make the root
+module consumable is required before this provider seam can be analyzed
+together with Apple rules.
+
+The runner additionally attempts a disposable direct `rules_mojo` 0
+local-path override using the checkout's resolved source. If that does not
+advance Bzlmod resolution, the root's versionless dependency remains the
+actionable boundary; the override never modifies the root module or lockfile.
+
+It also derives local paths for the cached Jammy aarch64/x86_64 sysroot modules
+and gives them disposable `0.0.0` direct pins. These overrides test module
+resolution only and never replace root archive overrides or alter the root
+lockfile.
+
+For the same isolated purpose, the runner can expose the cached patched
+`rules_mypy` 0.41.0 source as a direct local dependency: the root registers a
+Mojo toolchain that loads it while marking the dependency as development-only.
+This is not a proposal to change the root dependency visibility or lockfile.
 
 With the Bazel 9.2.0 selected for this checkout, the app target is queryable
 but analysis currently stops in `rules_apple` before any SDK action because its

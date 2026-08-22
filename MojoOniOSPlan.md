@@ -293,6 +293,14 @@ temporary control using `rules_apple` 4.5.3 plus `rules_swift` 3.5.0 analyzes
 and builds a minimal Simulator `.ipa`, but that pair raises the root protobuf
 floor and has not been adopted. No root Apple-rule dependency or toolchain
 change has been made, and no canonical app build is claimed.
+In a separate disposable root dependency-owner trial, protobuf 34.0.bcr.1
+resolved with either a narrowly ported development-dependency patch or no
+protobuf patch; the no-patch variant passed the focused `CompilerRTIOSStatic`
+build and 70 KGEN unit tests. Its minimal UIKit app still stops under the
+repository's Bazel 10 pre-release because the 4.5.3 Apple rules request
+`//command_line_option:apple_platforms` as an invalid transition output. This
+narrows the root blocker to dependency/toolchain compatibility; it is not a
+reason to change the shared root graph without owner review.
 That isolated control now also imports the generated runtime-free Mojo archive
 through `cc_import`, compiles a C caller of `mojo_add`, and builds a minimal
 Swift/iOS Simulator IPA. This proves that the archive is consumable by the
@@ -317,10 +325,12 @@ header and linking context for its generated archive, so a future same-graph
 Apple target can consume the artifact without a `bazel-bin` path. This provider
 seam is not itself Apple-rule registration, SDK declaration, or runtime support.
 The disposable same-graph control attempts that next step without copying an
-archive, but stops during Bzlmod resolution because the root declares the
-versionless `rules_mojo` dependency accepted by the main module but rejected
-when `modular` is consumed as a dependency. No Apple SDK action runs until that
-module-graph contract is repaired in a dependency-owner change.
+archive. Its ladder of dynamic, local-only overrides advances past the root's
+versionless `rules_mojo` and Jammy sysroot dependencies, but `--nobuild` then
+stops at the registered Mojo toolchain because the consumed `modular` module
+cannot see its `@rules_mypy` load. A top-level override cannot repair a
+dependency's development-dependency repository mapping. No Apple SDK action
+runs until this Bzlmod contract is repaired in a dependency-owner change.
 The expected-failure `Globals.cpp` link boundary is complemented by a separate
 `GlobalsIOS.cpp` candidate: its named/indexed lookup, insertion, destruction,
 and idempotent teardown pass a C++ Simulator consumer and an opt-in Simulator
@@ -337,6 +347,14 @@ An additional Error-construction probe now links a separate SDK-built
 zero/null “stack trace not collected” result, and observes
 `MOJO_COMPILERRT_ERROR_PROBE_PASS` on the Simulator. It does not claim throwing,
 stack capture, `initialize_runtime`, or AsyncRT support.
+A composite core-seed probe now compiles `MemoryIOS.cpp`, `Initialize.cpp`,
+`GlobalsIOS.cpp`, and `StackTraceIOS.cpp` into one fresh Simulator archive,
+links both emitted Mojo global and Error probes, and observes
+`MOJO_COMPILERRT_CORE_SEED_PROBE_PASS`. This demonstrates only coexistence of
+the narrow allocation, named-global teardown, and Error-construction paths;
+the candidates remain outside `CompilerRTIOSStatic`, and no
+`initialize_runtime`, AsyncRT, TCMalloc, throwing, stack capture, concurrent
+global semantics, or device claim is made.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both
