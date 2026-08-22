@@ -229,8 +229,11 @@ Accelerate/vDSP adapter whose opt-in Simulator run now checks a deterministic
 vDSP result marker. This is Apple-framework runtime evidence, not Mojo
 execution, device coverage, or a benchmark gate. A CoreFoundation CFString
 adapter now has matching device/Simulator compile-link checks and an opt-in
-Simulator ownership marker. D9 has a matching artifact-only Core ML framework
-adapter fixture for both device and Simulator SDKs; it does not load a model
+Simulator ownership marker. CoreGraphics and Foundation now have matching
+device/Simulator adapter checks plus opt-in Simulator result markers; these are
+framework-boundary evidence, not Mojo-runtime or device support. D9 has a
+matching artifact-only Core ML framework adapter fixture for both device and
+Simulator SDKs; it does not load a model
 or claim ANE use. D12
 has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
 triples; it does not prove Mojo lowering, app loading, or device dispatch.

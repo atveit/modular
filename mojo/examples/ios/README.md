@@ -32,6 +32,24 @@ create/inspect/release. See
 [`corefoundation_adapter/README.md`](corefoundation_adapter/README.md) for the
 ownership boundary and constraints.
 
+## Foundation Objective-C adapter
+
+`foundation_adapter/run_foundation_smoke.sh` demonstrates the object-framework
+boundary: caller-owned UTF-8 enters an Objective-C adapter, which owns an
+`NSString` and `NSURL` and returns only a status plus scalar `isFileURL` value.
+The default harness checks device and Simulator `Foundation.framework` links
+and their `IOS`/`IOSSIMULATOR` metadata without Mojo runtime, device signing,
+installation, or physical-device claims.
+
+```sh
+mojo/examples/ios/foundation_adapter/run_foundation_smoke.sh
+```
+
+`RUN_SIMULATOR=1` additionally requests the scoped Simulator
+`MOJO_FOUNDATION_URL_PASS` marker. See
+[`foundation_adapter/README.md`](foundation_adapter/README.md) for the
+ownership and runtime limits.
+
 ## Metal AIR toolchain probe
 
 `run_metal_air_toolchain_probe.sh` compiles a checked-in handwritten MSL kernel
@@ -268,6 +286,17 @@ It does not bundle a model or call Core ML, and therefore makes no prediction,
 compute-unit, ANE, runtime, device, or performance claim. See
 [`coreml_adapter/README.md`](coreml_adapter/README.md) for the artifact checks.
 
+The CoreGraphics direct-C fixture uses scalar rectangle dimensions while
+retaining/releasing framework resources inside C. It compile/links both iOS
+slices by default; `RUN_SIMULATOR=1` adds a deterministic Simulator marker:
+
+```sh
+mojo/examples/ios/coregraphics_adapter/run_coregraphics_smoke.sh
+```
+
+See [`coregraphics_adapter/README.md`](coregraphics_adapter/README.md). This
+does not establish Mojo runtime or physical-device support.
+
 `runtime_string_probe/` is the intentionally separate Simulator-only runtime
 gate. It allocates a Mojo `String` and requires an explicitly supplied static
 iOS Simulator runtime archive; without one, its harness reports `SKIP` rather
@@ -367,6 +396,20 @@ It checks the assembly for an iOS 17 `.build_version` directive, the exported
 C symbol, and an explicit four-lane NEON floating-point arithmetic mnemonic.
 It is compile-only instruction evidence, not a link, correctness, runtime, or
 performance test.
+
+## Repository-built static-library emission probe
+
+`run_static_lib_emission_probe.sh` exercises `--emit static-lib` with the
+repository-built `mojo-full` for both iOS triples:
+
+```sh
+mojo/examples/ios/run_static_lib_emission_probe.sh
+```
+
+It verifies archive members, the runtime-free C ABI exports, and member
+`IOSSIMULATOR`/`IOS` metadata. It does not link, sign, install, or run the
+result. The independently installed Mojo 1.0.0b1 rejects `--emit static-lib`
+at option parsing and is intentionally not used by this probe.
 
 ## SwiftUI adoption seam
 

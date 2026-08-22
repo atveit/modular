@@ -1,0 +1,23 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only CoreGraphics fixture; its shell harness uses the Xcode SDK tools.
+filegroup(
+    name = "coregraphics_adapter_fixture",
+    srcs = [
+        "CoreGraphicsConsumer.swift",
+        "MojoIOSCoreGraphics.modulemap",
+        "README.md",
+        "mojo_ios_coregraphics.c",
+        "mojo_ios_coregraphics.h",
+        "run_coregraphics_smoke.sh",
+    ],
+)
+
+exports_files([
+    "CoreGraphicsConsumer.swift",
+    "MojoIOSCoreGraphics.modulemap",
+    "README.md",
+    "mojo_ios_coregraphics.c",
+    "mojo_ios_coregraphics.h",
+    "run_coregraphics_smoke.sh",
+])

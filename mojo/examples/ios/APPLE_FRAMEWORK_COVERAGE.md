@@ -32,10 +32,10 @@ appropriate tier.
 | --- | --- | --- | --- |
 | Darwin / libc | Direct C | In progress | errno, file descriptors, clocks, memory and thread primitives that are available in the app sandbox |
 | CoreFoundation | Direct C | Simulator runtime marker passes | `corefoundation_adapter/run_corefoundation_smoke.sh`: CFString create/inspect/release through a scalar C ABI; device execution remains a separate gate |
-| CoreGraphics | Direct C | Planned | scalar geometry and image metadata; no ownership crossing without an explicit rule |
+| CoreGraphics | Direct C | Simulator runtime marker passes | `coregraphics_adapter/run_coregraphics_smoke.sh`: scalar rectangle-area C ABI; resource ownership stays in C; device execution remains separate |
 | Accelerate, vDSP, BLAS, BNNS | Direct C | Simulator runtime marker passes | `accelerate_adapter/run_accelerate_smoke.sh`: vDSP vector add through a stable C header; device correctness and benchmarks remain |
 | `os`, signposts | Direct C / callback | Planned | signposted regions and structured diagnostic output |
-| Foundation | Adapter | Planned | data, URL/path, date, and error adapters with explicit ownership |
+| Foundation | Adapter | Simulator runtime marker passes | `foundation_adapter/run_foundation_smoke.sh`: Objective-C-owned NSString/NSURL behind scalar C ABI; device execution remains a separate gate |
 | UIKit | Adapter | Planned | screen/device metadata and a host-owned view/controller seam |
 | SwiftUI | Adapter | Compile-only host exists | SwiftUI owns `App`/`View`; Mojo supplies computation and model data through C |
 | Metal | Adapter + precompiled kernels | Planned | device discovery, buffer/pipeline handles, dispatch and error conversion |

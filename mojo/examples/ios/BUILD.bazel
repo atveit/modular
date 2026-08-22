@@ -25,6 +25,7 @@ filegroup(
         "check_compilerrt_ios_static_metadata.sh",
         "run_runtime_initialize_symbol_manifest.sh",
         "run_simd_assembly_probe.sh",
+        "run_static_lib_emission_probe.sh",
         "run_static_runtime_link_probe.sh",
         "run_stdlib_compile_coverage.sh",
         "run_stdlib_runtime_symbol_manifests.sh",
@@ -36,7 +37,9 @@ filegroup(
         "smoke_main.c",
         "//mojo/examples/ios/swiftui_host:swiftui_host_fixture",
         "//mojo/examples/ios/accelerate_adapter:accelerate_adapter_fixture",
+        "//mojo/examples/ios/coregraphics_adapter:coregraphics_adapter_fixture",
         "//mojo/examples/ios/corefoundation_adapter:corefoundation_adapter_fixture",
+        "//mojo/examples/ios/foundation_adapter:foundation_adapter_fixture",
     ],
 )
 
@@ -57,6 +60,7 @@ exports_files([
     "check_compilerrt_ios_static_metadata.sh",
     "run_runtime_initialize_symbol_manifest.sh",
     "run_simd_assembly_probe.sh",
+    "run_static_lib_emission_probe.sh",
     "run_static_runtime_link_probe.sh",
     "run_stdlib_compile_coverage.sh",
     "run_stdlib_runtime_symbol_manifests.sh",

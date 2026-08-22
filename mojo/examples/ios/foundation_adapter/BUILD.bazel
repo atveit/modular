@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only Objective-C adapter fixture. Xcode tools are used because this
+# checkout has no rules_apple/rules_swift registration.
+filegroup(
+    name = "foundation_adapter_fixture",
+    srcs = [
+        "FoundationConsumer.swift",
+        "MojoIOSFoundation.modulemap",
+        "README.md",
+        "mojo_ios_foundation.h",
+        "mojo_ios_foundation.m",
+        "run_foundation_smoke.sh",
+    ],
+)
+
+exports_files([
+    "FoundationConsumer.swift",
+    "MojoIOSFoundation.modulemap",
+    "README.md",
+    "mojo_ios_foundation.h",
+    "mojo_ios_foundation.m",
+    "run_foundation_smoke.sh",
+])

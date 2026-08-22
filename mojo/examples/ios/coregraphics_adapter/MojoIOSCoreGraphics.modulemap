@@ -1,0 +1,4 @@
+module MojoIOSCoreGraphics [system] {
+  header "mojo_ios_coregraphics.h"
+  export *
+}
