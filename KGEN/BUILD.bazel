@@ -946,6 +946,9 @@ modular_shared_library(
     srcs = glob([
         "lib/CompilerRT/*.cpp",
         "lib/CompilerRT/*.h",
+    ], exclude = [
+        # The iOS-only libc allocator must not enter the desktop shared DSO.
+        "lib/CompilerRT/MemoryIOS.cpp",
     ]),
     hdrs = glob([
         "include/KGEN/CompilerRT/*.h",
@@ -1002,8 +1005,8 @@ modular_shared_library(
 )
 
 # Deliberately small, statically linkable CompilerRT seed for the iOS D6 work.
-# It is not yet the iOS runtime: in particular it omits allocation and AsyncRT
-# until those components have iOS-safe implementations and link evidence.
+# It is not yet the iOS runtime: it has a libc-only allocation ABI slice, but
+# omits AsyncRT and all startup/runtime services until they have link evidence.
 # Keep this source list explicit so Python/JIT, tracing, plugin, device-context,
 # and desktop fault-handler code cannot enter an app through this target.
 modular_cc_library(
@@ -1011,6 +1014,7 @@ modular_cc_library(
     srcs = [
         "lib/CompilerRT/Globals.cpp",
         "lib/CompilerRT/Initialize.cpp",
+        "lib/CompilerRT/MemoryIOS.cpp",
         "lib/CompilerRT/Support.cpp",
     ],
     local_defines = ["MODULAR_BUILDING_COMPILERRT"],

@@ -47,10 +47,32 @@ An existing built driver can be supplied with `MOJO_IOS_PINNED_MOJO`. This
 probe intentionally does not infer AIR/metallib or device support from a
 successful assembly emit.
 
+## XCFramework packaging smoke
+
+`run_xcframework_smoke.sh` builds the runtime-free C ABI archive for both the
+arm64 device and arm64 Simulator targets, packages the two archives with
+`xcodebuild -create-xcframework`, and checks the XCFramework manifest plus the
+constituent Mach-O `IOS`/`IOSSIMULATOR` metadata. It is artifact-only: it does
+not require a physical device or signing identity, and it does not install or
+execute an app.
+
+```sh
+MOJO_BIN=bazel-bin/KGEN/tools/mojo/mojo-full \
+MOJO_STDLIB_PATH=mojo/stdlib \
+  mojo/examples/ios/run_xcframework_smoke.sh
+```
+
+Set `MOJO_IOS_XCFRAMEWORK_OUT` to a new output directory when retaining
+artifacts from multiple runs. The same harness generates a local Swift Package
+inside that output directory, with a binary target for the XCFramework and a
+tiny Swift wrapper over `mojo_add`, then runs `swift package describe --type
+json`. This validates package and binary-target metadata only; it does not
+claim an iOS Swift build, link, load, or execution.
+
 The Mojo module imports no stdlib module, allocates no memory, and does not
 initialize the Mojo runtime. It is therefore suitable for validating the
-compiler's target-object and native Xcode linker path before the iOS static
-CompilerRT exists.
+compiler's target-object and native Xcode linker path independently of the
+allocator-only D6 probe; the full iOS static CompilerRT still does not exist.
 
 ## Run the discovery smoke test
 
@@ -185,26 +207,40 @@ than claiming the runtime-free smoke result as runtime coverage. See
 
 ## Static runtime link probe
 
-`run_static_runtime_link_probe.sh` is the D6 pre-link diagnostic. It compiles
-a String-allocating Mojo C ABI export with the selected iOS SDK target and
-records its undefined-symbol manifest. With no runtime archive, it exits after
-that evidence; this is the expected current state. When a proposed
-target-compatible static runtime exists, supply it explicitly:
+`run_static_runtime_link_probe.sh` is the D6 Simulator link diagnostic. It
+compiles a String-allocating Mojo C ABI export, then compiles the libc-only
+`MemoryIOS.cpp` allocator slice against the Simulator SDK and links both. A
+proposed target-compatible static runtime can be supplied explicitly:
 
 ```sh
-MOJO_IOS_COMPILERRT_ARCHIVE=/absolute/path/libKGENCompilerRTIOS.a \
-  mojo/examples/ios/run_static_runtime_link_probe.sh
+mojo/examples/ios/run_static_runtime_link_probe.sh
 ```
 
-The script uses Xcode's `clang++` and fails if the linked executable retains a
-`KGEN_CompilerRT_` undefined symbol. A clean link remains link-only evidence:
-Simulator launch must separately prove allocation, String lifetime, repeated
-initialization, and clean teardown.
+Set `MOJO_IOS_COMPILERRT_ARCHIVE` to add a proposed full runtime archive after
+the allocator slice. The script uses Xcode's `clang++` and fails if the linked
+executable retains a `KGEN_CompilerRT_` undefined symbol. A clean link remains
+link-only evidence. Set `RUN_SIMULATOR=1` to package, sign, install, and launch
+the probe; the required `MOJO_RUNTIME_STRING_PROBE_PASS` marker then proves the
+allocator and String lifetime path on Simulator. It still does not prove
+`initialize_runtime()`, AsyncRT, repeated runtime initialization, or clean
+process teardown for the full runtime.
+
+Set `RUN_SIMULATOR=1` to opt into the narrow allocator/String lifetime gate:
+
+```sh
+RUN_SIMULATOR=1 mojo/examples/ios/run_static_runtime_link_probe.sh
+```
+
+It packages the linked executable with the existing `Info.plist`, ad-hoc signs
+it, installs and launches it with `simctl --console`, and requires the exact
+`MOJO_RUNTIME_STRING_PROBE_PASS` marker. If CoreSimulator or an available
+iPhone Simulator is absent, it reports `SKIP`. This gate does not prove
+`initialize_runtime`, AsyncRT, or general runtime support.
 
 It records the resolved `MOJO_BIN` path, compiler SHA-256/version, and
 `MOJO_STDLIB_PATH` (defaulting to this checkout's `mojo/stdlib`), and asserts
 that the emitted allocation probe references both expected aligned-allocation
-CompilerRT symbols before reporting its current `SKIP`.
+CompilerRT symbols before linking.
 
 ## SwiftUI adoption seam
 

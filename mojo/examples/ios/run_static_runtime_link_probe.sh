@@ -13,6 +13,7 @@ target_triple="${MOJO_IOS_RUNTIME_TRIPLE:-arm64-apple-ios17.0-simulator}"
 target_cpu="${MOJO_IOS_RUNTIME_CPU:-apple-m1}"
 output_root="${MOJO_IOS_RUNTIME_PROBE_OUT:-${repo_root}/bazel-out/ios-static-runtime-probe}"
 runtime_archive="${MOJO_IOS_COMPILERRT_ARCHIVE:-}"
+allocator_source="${MOJO_IOS_COMPILERRT_ALLOCATOR_SOURCE:-${repo_root}/KGEN/lib/CompilerRT/MemoryIOS.cpp}"
 
 log() {
   printf '[ios-static-runtime-probe] %s\n' "$*"
@@ -34,21 +35,20 @@ case "${target_triple}" in
     sdk_name="iphonesimulator"
     minimum_os_flag="-mios-simulator-version-min=17.0"
     ;;
-  *-ios*)
-    sdk_name="iphoneos"
-    minimum_os_flag="-miphoneos-version-min=17.0"
-    ;;
   *)
-    fail "MOJO_IOS_RUNTIME_TRIPLE must be an iOS device or Simulator triple: ${target_triple}"
+    fail "MOJO_IOS_RUNTIME_TRIPLE must be an iOS Simulator triple: ${target_triple}"
     ;;
 esac
 
 sdk_path="$(xcrun --sdk "${sdk_name}" --show-sdk-path)"
 clang_bin="$(xcrun --sdk "${sdk_name}" --find clang)"
 clangxx_bin="$(xcrun --sdk "${sdk_name}" --find clang++)"
+libtool_bin="$(xcrun --sdk "${sdk_name}" --find libtool)"
 mkdir -p "${output_root}"
 object_path="${output_root}/mojo_ios_runtime_probe.o"
 host_object_path="${output_root}/runtime_probe_main.o"
+allocator_object_path="${output_root}/CompilerRTIOSAllocator.o"
+allocator_archive_path="${output_root}/libCompilerRTIOSAllocator.a"
 executable_path="${output_root}/mojo_ios_runtime_probe"
 undefined_path="${output_root}/mojo_ios_runtime_probe.undefined.txt"
 
@@ -75,22 +75,34 @@ if command -v vtool >/dev/null 2>&1; then
   vtool -show-build "${object_path}" | sed -n '1,40p'
 fi
 
-if [[ -z "${runtime_archive}" ]]; then
-  log "SKIP: set MOJO_IOS_COMPILERRT_ARCHIVE to an iOS static runtime archive to link the probe"
-  log "The undefined-symbol manifest is the expected pre-link D6 evidence."
-  exit 0
+[[ -f "${allocator_source}" ]] || fail "MOJO_IOS_COMPILERRT_ALLOCATOR_SOURCE does not exist: ${allocator_source}"
+if [[ -n "${runtime_archive}" ]]; then
+  [[ -f "${runtime_archive}" ]] || fail "MOJO_IOS_COMPILERRT_ARCHIVE does not exist: ${runtime_archive}"
 fi
-[[ -f "${runtime_archive}" ]] || fail "MOJO_IOS_COMPILERRT_ARCHIVE does not exist: ${runtime_archive}"
+
+log "compiling libc-only CompilerRT allocator slice for the Simulator SDK"
+"${clangxx_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
+  "${minimum_os_flag}" -arch arm64 -std=c++17 \
+  -DMODULAR_BUILDING_COMPILERRT -I"${repo_root}/Support/include" \
+  -c "${allocator_source}" -o "${allocator_object_path}"
+"${libtool_bin}" -static -o "${allocator_archive_path}" "${allocator_object_path}"
+file "${allocator_object_path}" "${allocator_archive_path}"
+if command -v vtool >/dev/null 2>&1; then
+  vtool -show-build "${allocator_object_path}" | sed -n '1,40p'
+fi
 
 log "compiling native C consumer"
 "${clang_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
   "${minimum_os_flag}" -arch arm64 -I"${script_dir}" \
   -c "${script_dir}/runtime_probe_main.c" -o "${host_object_path}"
 
-log "linking proposed static runtime archive"
+link_inputs=("${host_object_path}" "${object_path}" "${allocator_archive_path}")
+if [[ -n "${runtime_archive}" ]]; then
+  link_inputs+=("${runtime_archive}")
+fi
+log "linking Simulator allocator slice${runtime_archive:+ and proposed static runtime archive}"
 "${clangxx_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
-  "${minimum_os_flag}" -arch arm64 "${host_object_path}" "${object_path}" \
-  "${runtime_archive}" -o "${executable_path}"
+  "${minimum_os_flag}" -arch arm64 "${link_inputs[@]}" -o "${executable_path}"
 
 if nm -u "${executable_path}" | grep -q 'KGEN_CompilerRT_'; then
   fail "linked executable still has unresolved KGEN_CompilerRT symbols"
@@ -100,4 +112,45 @@ if command -v vtool >/dev/null 2>&1; then
   vtool -show-build "${executable_path}" | sed -n '1,40p'
 fi
 log "PASS: link completed without unresolved KGEN_CompilerRT symbols"
-log "This is link evidence only; run the app on Simulator before claiming allocation/String runtime support."
+
+if [[ "${RUN_SIMULATOR:-0}" != 1 ]]; then
+  log "PASS: Simulator compile/link evidence only (set RUN_SIMULATOR=1 to package, install, and launch)"
+  exit 0
+fi
+
+log "checking CoreSimulator availability"
+if ! xcrun simctl list runtimes >/dev/null 2>&1; then
+  log "SKIP: CoreSimulator is unavailable in this environment"
+  exit 0
+fi
+
+device_udid="$(xcrun simctl list devices available | sed -nE '/iPhone.*\([0-9A-F-]{36}\)/ { s/.*\(([0-9A-F-]{36})\).*/\1/p; q; }')"
+if [[ -z "${device_udid}" ]]; then
+  log "SKIP: no available iPhone Simulator device"
+  exit 0
+fi
+command -v codesign >/dev/null 2>&1 || fail "codesign is required for Simulator launch"
+
+app_id="com.modular.mojo.ios.runtime-probe"
+app_path="${output_root}/mojo_ios_runtime_probe.app"
+launch_log="${output_root}/launch.log"
+log "packaging and ad-hoc signing Simulator app"
+rm -rf "${app_path}"
+mkdir -p "${app_path}"
+cp "${script_dir}/Info.plist" "${app_path}/Info.plist"
+cp "${executable_path}" "${app_path}/mojo_ios_smoke"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${app_id}" "${app_path}/Info.plist"
+codesign --force --sign - "${app_path}" >/dev/null
+codesign --verify --deep --strict "${app_path}"
+
+log "booting ${device_udid}"
+xcrun simctl boot "${device_udid}" 2>/dev/null || true
+xcrun simctl bootstatus "${device_udid}" -b
+log "installing ${app_path}"
+xcrun simctl install "${device_udid}" "${app_path}"
+log "launching allocator/String probe; required marker proves assertion and lifetime completed"
+xcrun simctl launch --console "${device_udid}" "${app_id}" | tee "${launch_log}"
+grep -qx 'MOJO_RUNTIME_STRING_PROBE_PASS' "${launch_log}" || \
+  fail "Simulator launch did not emit MOJO_RUNTIME_STRING_PROBE_PASS"
+log "PASS: Simulator allocator/String lifetime probe completed"
+log "This does not prove initialize_runtime, AsyncRT, or broader runtime support."

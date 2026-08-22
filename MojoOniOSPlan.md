@@ -216,9 +216,18 @@ gates. D9 has a matching artifact-only Core ML framework adapter fixture for
 both device and Simulator SDKs; it does not load a model or claim ANE use. D12
 has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
 triples; it does not prove Mojo lowering, app loading, or device dispatch.
-D6 now has a source/dependency implementation map, but no static runtime
-target or runtime-backed Simulator test yet. D7 and the runtime portions of
-D9–D13 remain planned and must not be described as shipped support. The D3
+D6 now has an explicit `//KGEN:CompilerRTIOSStatic` source-list seed plus a
+libc-only `MemoryIOS.cpp` allocator slice. The Simulator link diagnostic
+compiles that allocator with the iPhoneSimulator SDK and links the
+runtime-dependent String object with no unresolved `KGEN_CompilerRT_*`
+symbols. With `RUN_SIMULATOR=1`, it also installs and launches the probe and
+observes `MOJO_RUNTIME_STRING_PROBE_PASS`, proving allocator/String lifetime
+only; it is not full runtime execution or `initialize_runtime()` support. D7
+and the runtime portions of
+D9–D13 remain planned and must not be described as shipped support. D5b now
+also has an artifact-only XCFramework plus generated local Swift Package
+metadata smoke for the runtime-free C ABI, covering `ios-arm64` and
+`ios-arm64-simulator`; it does not build or execute a consumer app. The D3
 artifact chain is proven, but its original exit gate—one
 rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet
 met because this checkout still uses source fixtures and shell probes.
