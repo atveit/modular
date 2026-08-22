@@ -568,6 +568,21 @@ complete their basic global teardown/Error-construction sequence. It is not a
 production static runtime, does not enable throwing or stack capture, and does
 not invoke `initialize_runtime` or AsyncRT.
 
+The current `initialize_runtime`/AsyncRT boundary has a checked-in discovery
+gate:
+
+```sh
+MOJO_IOS_ASYNCRT_COMPILE_BLOCKER_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_asyncrt_ios_compile_blocker.sh
+```
+
+It uses Xcode's Simulator clang and Bazel-materialized LLVM headers to compile
+only `KGEN/lib/CompilerRT/AsyncRT.cpp`, records the expected target-configured
+LLVM/MLIR header failure, and exits successfully as `BLOCKED`. It never creates
+an AsyncRT archive, links an app, or claims runtime support. The next gate is a
+target-configured iOS LLVM/MLIR toolchain contract plus an extracted CPU-device
+shim with explicitly reviewed allocator/work-queue semantics.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,
