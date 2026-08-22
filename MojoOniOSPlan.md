@@ -182,6 +182,7 @@ larger destination.
 | D7 — CPU/SIMD/threading package | Reusable core library with correctness tests and device benchmark app | NEON/vector inspection, multicore correctness/scaling, C-boundary overhead, and no unexplained Swift regression |
 | D8 — Direct C SDK products | Darwin/CoreFoundation/CoreGraphics/Accelerate/`os` headers and package products | iOS 17 compile/link tests, ABI layout checks, availability metadata, and at least one runtime test per product |
 | D9 — Object-framework adapters | Foundation/UIKit/SwiftUI/AVFoundation/Core ML adapter products | Stable C handles/callbacks, ownership and teardown tests, entitlement notes, and Simulator/device behavior where required |
+| D9a — Public ML acceleration | Core ML model adapter plus Accelerate/vDSP/BLAS/BNNS products | Bundled model conversion record, compute-unit diagnostics, device correctness, and evidence that ANE claims come from profiling rather than configuration |
 | D10 — Full SDK coverage manifest | Versioned public-framework inventory and machine-readable package manifest | Every public SDK framework has direct, adapter, callback, compile-only, or unavailable status with a reason and test reference |
 | D11 — XCFramework/Swift Package | Device + Simulator XCFramework, headers/module maps, local Swift Package wrapper | Clean consumer app imports core and adapter products without Mojo/Modular installation; no `lipo` mixing |
 | D12 — Metal package | Precompiled Mojo-generated metallibs plus Swift/ObjC host bridge | iPhone and iPad correctness, no on-device shader compilation, GPU trace comparison to MSL/MPS |
@@ -249,7 +250,16 @@ claims and the immediate order of work:
 5. **Treat D8 as a product-by-product ladder.** The Accelerate/vDSP adapter is
    currently compile/link evidence. Add Simulator execution, then device
    execution and a benchmark before marking that product runtime-supported.
-6. **Prioritize D6 over framework breadth.** The static iOS CompilerRT and a
+6. **Treat D9a as a public-API accelerator milestone.** Core ML is the supported
+   iOS path for model graphs that may use the Neural Engine;
+   `MLComputeUnits` is an allow-list for Core ML scheduling, not a Mojo ANE
+   kernel API or a guarantee that every operation ran on ANE. Convert and
+   package models on the Mac with `coremltools`, expose prediction through a
+   Swift/Objective-C C ABI adapter, and require physical-device profiling
+   before making an ANE claim. Accelerate/vDSP/BLAS/BNNS remains a direct
+   C/CPU-vector path and must not be described as raw ANE access. See the
+   detailed [Core ML and Accelerate appendix](docs/ios/ACCELERATORS_COREML_ACCELERATE.md).
+7. **Prioritize D6 over framework breadth.** The static iOS CompilerRT and a
    small allocation/string/error/parallel test matrix unlock substantially more
    Mojo code than adding additional Apple framework names to the manifest.
 
@@ -592,6 +602,59 @@ least two framework products from different tiers, runs on Simulator, and has
 an inventory report showing every public SDK framework as direct, adapter,
 callback, compile-only, or unavailable with a reason and test reference.
 
+### Accelerator strategy: Metal, Core ML/ANE, Accelerate, and private research
+
+The roadmap deliberately separates four mechanisms that are often conflated:
+
+1. **Mojo-generated Metal (direct programmable path).** Mojo can eventually
+   lower kernels to Apple AIR, link them to an iOS-compatible `.metallib` on
+   the Mac, and bundle that resource in an app. A small Swift or Objective-C++
+   host bridge owns `MTLDevice`, buffers, pipeline state, dispatch, and
+   synchronization; Mojo sees a stable C ABI. No shader compiler, JIT, network
+   download, or executable-code generation runs on the device. The current
+   macOS implementation is a useful lowering reference, but its exact
+   `air64-apple-macosx` predicates, M-series presets, and host-side launch
+   machinery are not proof of iOS support. The detailed staged work is in
+   [ACCELERATORS_METAL_IOS.md](docs/ios/ACCELERATORS_METAL_IOS.md).
+2. **Core ML (supported public ANE route).** Convert a model or ML Program on
+   the Mac with `coremltools`, bundle the resulting `.mlpackage` or compiled
+   model, and call it from a Swift/Objective-C adapter. Configure
+   `MLModelConfiguration.computeUnits` with `.all` by default, or restrictive
+   values such as `.cpuAndNeuralEngine` for a diagnostic/fallback experiment.
+   These values allow or exclude compute units; they do not submit arbitrary
+   Mojo kernels to ANE, reserve an ANE, or prove placement. Core ML may
+   partition a graph across CPU, GPU, and ANE, so ANE usage must be demonstrated
+   with physical-device tooling and raw evidence. See Apple's
+   [MLComputeUnits documentation](https://developer.apple.com/documentation/coreml/mlcomputeunits)
+   and the repository's [Core ML and Accelerate appendix](docs/ios/ACCELERATORS_COREML_ACCELERATE.md).
+3. **Accelerate (supported public CPU/DSP route).** Bind vDSP/vForce,
+   BLAS/LAPACK, and BNNS through direct C headers or a narrow adapter. This is a
+   valuable CPU/SIMD and linear-algebra path, and BNNS can execute supported
+   CPU-side neural-network graphs, but Accelerate is not a public raw ANE
+   programming API. Benchmark it against Mojo SIMD and Metal rather than
+   labeling it Neural Engine execution. See Apple's
+   [Accelerate overview](https://developer.apple.com/accelerate/).
+4. **oMLX-style private ANE (quarantined research only).** The adjacent
+   `dflash2qwen` experiment is a macOS-specific, fixed-shape hybrid design: it
+   selects approximate INT8 prefill rows, uses private `_ANE*` interfaces and
+   IOSurface plumbing, overlaps selected ANE work with Metal, and leaves decode
+   and other stateful work on Metal. Its local Mojo facade explicitly identifies
+   itself as a scaffold: class discovery, IOSurface allocation, conceptual
+   procedure states, or CPU reference loops do not prove ANE compile/load/eval.
+   Private selectors, device-specific split ratios, eager procedure banks, and
+   dual-ANE assumptions must not enter an iOS package, TestFlight artifact, or
+   App Store build. Keep any future private-ANE experiment in a separately
+   opted-in macOS target with real compile/load/warm/evaluate counters and
+   fail-closed errors. The evidence and quarantine rules are in
+   [ACCELERATORS_ANE_Omlx.md](docs/ios/ACCELERATORS_ANE_Omlx.md).
+
+This yields a crawl-walk-run order: first prove public Core ML and Accelerate
+adapters with explicit device measurements, then prove one Mojo Metal kernel
+end to end, then experiment with hybrid partitioning only behind public-API or
+clearly quarantined research boundaries. Do not promise “ANE support” because a
+model loaded with `.all` succeeds, because private classes are discoverable, or
+because a benchmark reports a configured ANE flag.
+
 ### Phase 7 — iOS Metal Compute
 
 1. Reuse the existing Mojo AIR lowering, Apple GPU standard-library primitives,
@@ -619,6 +682,62 @@ callback, compile-only, or unavailable with a reason and test reference.
 **Exit gate:** Precompiled Mojo Metal kernels run correctly on at least one
 iPhone class and one iPad class, require no runtime shader compilation, and have
 explained performance relative to handwritten MSL and MPS.
+
+### Phase 7A — Public Core ML and Neural Engine integration
+
+1. Convert representative models on the Mac with a pinned `coremltools`
+   toolchain. Record source-model hashes, input/output contracts, precision,
+   shapes, minimum deployment target, and the emitted `.mlpackage` or compiled
+   model hash. Keep conversion and model artifacts out of the on-device Mojo
+   compiler path.
+2. Add a Swift/Objective-C adapter linked against `CoreML.framework`. Expose a
+   narrow C ABI to Mojo using caller-owned typed buffers or opaque model
+   handles, explicit create/destroy functions, integer status codes, and
+   bounded diagnostics. Keep `MLModel`, `MLMultiArray`, Swift concurrency, and
+   Objective-C ownership on the adapter side.
+3. Start with `MLModelConfiguration.computeUnits = .all`, then run diagnostic
+   variants such as `.cpuOnly`, `.cpuAndGPU`, and `.cpuAndNeuralEngine` where
+   the deployment target supports them. Treat these as scheduling constraints,
+   not as direct engine-selection or kernel-programming APIs.
+4. Validate conversion parity on macOS, then validate cold/warm load,
+   numerical tolerances, malformed inputs, memory, latency, energy, and
+   thermal behavior on physical iPhone and iPad devices. Use Core ML and
+   Neural Engine Instruments or equivalent Apple tooling to substantiate any
+   statement that work actually ran on ANE; a successful prediction or a
+   compute-unit flag alone is insufficient.
+5. Add hybrid experiments only after a complete Core ML graph is correct:
+   Mojo owns CPU/Metal preprocessing and postprocessing while Core ML owns a
+   supported subgraph. Begin with explicit copies and synchronization; attempt
+   IOSurface or Metal-buffer sharing only after lifetime, stride, dtype, and
+   cache-coherency tests pass.
+
+**Exit gate:** A clean signed device app runs a bundled public Core ML model
+through the Mojo C ABI, passes the reference tolerance and failure matrix on
+an iPhone and iPad class, and publishes raw device evidence for the selected
+compute-unit configurations. The result may say “Core ML used an eligible
+compute unit”; it must not claim arbitrary Mojo code ran on ANE.
+
+### Phase 7B — Optional macOS private-ANE research (never an iOS deliverable)
+
+1. Keep oMLX-style work in a separately opted-in macOS target and build
+   configuration. Exclude private frameworks, selectors, private dylibs, and
+   ANE bridge objects from iOS, XCFramework, TestFlight, and App Store
+   artifacts.
+2. Port one claim at a time: capability probe; real fixed-shape compile;
+   load/warm/evaluate; checked output; IOSurface/Metal ownership; then dual-
+   instance overlap. Class discovery, procedure counts, registry flags, and
+   CPU reference loops are not success evidence.
+3. Require explicit per-procedure execution counters, native error propagation,
+   timeout/cancellation handling, transactional state rollback, and a fail-
+   closed result when any requested procedure is missing or falls back.
+4. Pin hardware, OS, model, INT8 conversion, tile shape, split ratios, and
+   thermal/memory conditions. Compare against GPU-only Mojo and oMLX with raw
+   tensor/token correctness records as well as throughput; do not generalize a
+   dual-ANE M3 Ultra result to iPhone or iPad.
+
+**Exit gate:** This phase can produce a reproducible macOS research report,
+but it never changes the supported iOS package contract. A future public Apple
+API may replace this phase; private API discovery is not an upstreaming gate.
 
 ### Phase 8 — Hardening and Upstreaming
 
@@ -656,6 +775,7 @@ until its corresponding tests run in the intended target environment.
 | Application integration | SwiftUI UI test; iPhone and iPad Simulator build/install/launch; runtime-free physical artifact launch; visible SwiftUI physical “Hello from Mojo”; clean XCFramework consumer | 1, D5a–D5b, and 4 |
 | Compatibility | No macOS or Linux regression; configurable deployment target with iOS 17 as the tested baseline | Every phase |
 | CPU performance | On-device scalar, SIMD, allocation, C-boundary, and threading baselines; recorded toolchain, device, thermal, latency, throughput, memory, and energy context | 5 |
+| Public ML acceleration | Core ML conversion/package hashes; C adapter ownership/error tests; `.all` and diagnostic compute-unit runs; physical-device numerical, thermal, and ANE-tool evidence; Accelerate/vDSP/BLAS/BNNS parity | 6A–7A |
 | Metal performance | Correctness and on-device measurements against MSL/MPS only after the GPU phase; no Simulator performance claims | 7 |
 | Distribution | No JIT, Python, compiler binaries, loose dynamic libraries, private Apple APIs, user-specific signing material, or merged device/Simulator `lipo` binary; optional internal TestFlight build uses distribution signing and a complete app bundle | 4–8 and D5c |
 
