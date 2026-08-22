@@ -22,5 +22,6 @@ struct AccelerateConsumer {
 
         precondition(status == 0)
         precondition(output == [11, 22, 33, 44])
+        print("MOJO_ACCELERATE_VDSP_PASS")
     }
 }

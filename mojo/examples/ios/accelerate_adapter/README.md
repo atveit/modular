@@ -21,6 +21,17 @@ the framework load command. Set `MOJO_IOS_ACCELERATE_OUT` to retain outputs
 elsewhere. This is compile/link-only: CoreSimulator launch and physical-device
 execution are not claimed here.
 
+To opt into the Simulator runtime check, use:
+
+```sh
+RUN_SIMULATOR=1 mojo/examples/ios/accelerate_adapter/run_accelerate_smoke.sh
+```
+
+The script packages and ad-hoc signs a minimal Simulator app, installs it, and
+requires the exact `MOJO_ACCELERATE_VDSP_PASS` console marker after the Swift
+consumer checks the vDSP vector-add result. This is Accelerate/vDSP runtime
+evidence only; it does not execute Mojo or establish Core ML/ANE behavior.
+
 The fixture is intentionally source-only rather than an `ios_application`
 target. `rules_apple` and `rules_swift` are not registered in this checkout;
 the same header/module map and adapter object can become a `cc_library` plus a
@@ -30,7 +41,7 @@ Swift target when the Apple Bazel toolchain is added.
 
 | Framework/API | Boundary | Status in this fixture | Next gate |
 | --- | --- | --- | --- |
-| Accelerate/vDSP | Direct C adapter | Compile/link prototype passes on iOS Simulator | Runtime correctness on Simulator, then device; benchmark against Mojo and Swift |
+| Accelerate/vDSP | Direct C adapter | Compile/link check; opt-in Simulator runtime marker | Device correctness and benchmark against Mojo/Swift |
 | CoreFoundation | Direct C | Planned | Handwritten ownership-safe CFString/CFData probe |
 | `os` signposts | Direct C/callback | Planned | Signpost-backed device benchmark integration |
 | SwiftUI | Swift host + C ABI | Compile/link host exists | SwiftUI UI test once rules/app/runtime integration exists |

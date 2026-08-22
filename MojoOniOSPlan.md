@@ -224,9 +224,10 @@ that option at option parsing, before it selects any target runtime or linker.
 D5 has a device object/archive/link probe (signing and
 installation remain intentionally skipped). D8 has a compile-only LLVM
 inventory covering builtins, explicit SIMD, math, Darwin errno, clocks,
-formatting, and libc output for both iOS triples, plus a compile/link
-prototype for an Accelerate/vDSP adapter; neither has runtime, device, or
-benchmark gates yet. D9 has a matching artifact-only Core ML framework
+formatting, and libc output for both iOS triples, plus a direct-C
+Accelerate/vDSP adapter whose opt-in Simulator run now checks a deterministic
+vDSP result marker. This is Apple-framework runtime evidence, not Mojo
+execution, device coverage, or a benchmark gate. D9 has a matching artifact-only Core ML framework
 adapter fixture for both device and Simulator SDKs; it does not load a model
 or claim ANE use. D12
 has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
@@ -310,9 +311,10 @@ claims and the immediate order of work:
    complete, distribution-signed app containing Mojo code, not an XCFramework
    or Mojo library by itself. Keep external TestFlight review and public-beta
    claims separate from this internal tracer milestone.
-5. **Treat D8 as a product-by-product ladder.** The Accelerate/vDSP adapter is
-   currently compile/link evidence. Add Simulator execution, then device
-   execution and a benchmark before marking that product runtime-supported.
+5. **Treat D8 as a product-by-product ladder.** The Accelerate/vDSP adapter now
+   has compile/link coverage and an opt-in Simulator result-marker run. Add
+   device execution and a benchmark before marking that product
+   runtime-supported.
 6. **Treat D9a as a public-API accelerator milestone.** Core ML is the supported
    iOS path for model graphs that may use the Neural Engine;
    `MLComputeUnits` is an allow-list for Core ML scheduling, not a Mojo ANE
