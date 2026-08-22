@@ -1,6 +1,6 @@
 # Mojo on iOS Roadmap
 
-**Status:** Planning
+**Status:** In progress — Simulator path and device SwiftUI artifact path are implemented; physical signing/launch remains the next gate
 **Evidence last verified:** August 22, 2026
 **Initial deployment baseline:** iOS and iPadOS 17
 
