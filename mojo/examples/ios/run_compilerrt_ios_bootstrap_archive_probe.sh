@@ -9,6 +9,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 output_root="${MOJO_IOS_COMPILERRT_BOOTSTRAP_OUT:-${repo_root}/bazel-out/ios-compilerrt-bootstrap-probe}"
 bazel_wrapper="${repo_root}/bazelw"
+requested_platform="${MOJO_IOS_COMPILERRT_BOOTSTRAP_PLATFORM:-all}"
 
 log() {
   printf '[ios-compilerrt-bootstrap-probe] %s\n' "$*"
@@ -22,11 +23,13 @@ fail() {
 command -v xcrun >/dev/null 2>&1 || fail "xcrun is required"
 command -v ar >/dev/null 2>&1 || fail "ar is required"
 command -v vtool >/dev/null 2>&1 || fail "vtool is required"
-[[ -x "${bazel_wrapper}" ]] || fail "bazelw is required to locate generated LLVM headers"
 mkdir -p "${output_root}"
 
-exec_root="$("${bazel_wrapper}" info --config=build-mojo execution_root)"
-bazel_bin="$("${bazel_wrapper}" info --config=build-mojo bazel-bin)"
+if [[ -z "${MOJO_IOS_BAZEL_EXEC_ROOT:-}" || -z "${MOJO_IOS_BAZEL_BIN:-}" ]]; then
+  [[ -x "${bazel_wrapper}" ]] || fail "bazelw is required to locate generated LLVM headers"
+fi
+exec_root="${MOJO_IOS_BAZEL_EXEC_ROOT:-$("${bazel_wrapper}" info --config=build-mojo execution_root)}"
+bazel_bin="${MOJO_IOS_BAZEL_BIN:-$("${bazel_wrapper}" info --config=build-mojo bazel-bin)}"
 llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"
 llvm_generated_include="${bazel_bin}/external/+llvm_configure+llvm-project/llvm/include"
 [[ -d "${llvm_source_include}" ]] || fail "missing Bazel LLVM source headers: ${llvm_source_include}"
@@ -95,8 +98,23 @@ build_one() {
   log "PASS: ${archive_path} contains only SDK-built ${expected_platform} objects"
 }
 
-build_one "arm64-apple-ios17.0-simulator" "iphonesimulator" \
-  "-mios-simulator-version-min=17.0" "IOSSIMULATOR"
-build_one "arm64-apple-ios17.0" "iphoneos" \
-  "-miphoneos-version-min=17.0" "IOS"
+case "${requested_platform}" in
+  all)
+    build_one "arm64-apple-ios17.0-simulator" "iphonesimulator" \
+      "-mios-simulator-version-min=17.0" "IOSSIMULATOR"
+    build_one "arm64-apple-ios17.0" "iphoneos" \
+      "-miphoneos-version-min=17.0" "IOS"
+    ;;
+  simulator)
+    build_one "arm64-apple-ios17.0-simulator" "iphonesimulator" \
+      "-mios-simulator-version-min=17.0" "IOSSIMULATOR"
+    ;;
+  device)
+    build_one "arm64-apple-ios17.0" "iphoneos" \
+      "-miphoneos-version-min=17.0" "IOS"
+    ;;
+  *)
+    fail "MOJO_IOS_COMPILERRT_BOOTSTRAP_PLATFORM must be all, simulator, or device; got ${requested_platform}"
+    ;;
+esac
 log "Core archive evidence only; no AsyncRT, link, signing, or execution claim."

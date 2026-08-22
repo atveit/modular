@@ -281,8 +281,17 @@ plus `rules_swift` 3.1.2. Restoring the historical `link_hack.bzl` contract
 fixed module traversal (`bazel mod all_paths` now completes), but the aliases
 remain absent from the root module. The isolated trial resolves and loads both
 rules and its minimal `ios_application` query passes; Bazel 9.2.0 then blocks
-analysis at `rules_apple`'s `apple_crosstool_top` transition setting. No root
-dependency or toolchain change has been made, and no app build is claimed.
+analysis at `rules_apple`'s `apple_crosstool_top` transition setting. A
+temporary control using `rules_apple` 4.5.3 plus `rules_swift` 3.5.0 analyzes
+and builds a minimal Simulator `.ipa`, but that pair raises the root protobuf
+floor and has not been adopted. No root Apple-rule dependency or toolchain
+change has been made, and no canonical app build is claimed.
+The runtime-free Bazel action seam now analyzes under the prebuilt Mojo
+configuration. A narrow `//KGEN:consumers` grant permits only the iOS example
+package to depend on the compiler executable, and a separate source filegroup
+exposes only the four SDK-bootstrap CompilerRT sources. The action's fresh
+archive execution remains a manual/toolchain gate; the checked-in shell probe
+is still the artifact evidence until a clean Bazel action run is captured.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both

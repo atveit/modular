@@ -21,9 +21,16 @@ transitive pair already present through `grpc`/`protobuf`:
 | `rules_swift` | `3.1.2` | declares Bazel `>=7.0.0`; is the version selected by the graph |
 | `apple_support` | `2.3.0` | already direct and selected |
 
-This makes `rules_apple` 4.1.0 plus `rules_swift` 3.1.2 the bounded candidate
-pair for an isolated trial. It is not proof that either works with this Bazel
-pre-release or with Modular's toolchain overlays.
+This makes `rules_apple` 4.1.0 plus `rules_swift` 3.1.2 the bounded
+reproduction pair for the existing failure; it is not a compatible app-target
+recommendation for the checkout's Bazel 9.2.0/10.0-pre toolchain.
+
+An isolated compatibility control upgraded only its nested module to
+`rules_apple` 4.5.3 and `rules_swift` 3.5.0. With Bazel 9.2.0 it analyzed and
+built the minimal arm64 Simulator UIKit `.ipa`; the legacy
+`apple_crosstool_top` transition error did not occur. This proves that the
+newer pair can establish an Apple/Swift toolchain in isolation, not that it can
+be added to the root graph safely.
 
 ## Minimal isolated-trial shape
 
@@ -34,10 +41,10 @@ is:
 
 ```starlark
 # Candidate only; do not paste without dependency-owner review.
-bazel_dep(name = "rules_apple", version = "4.1.0")
+bazel_dep(name = "rules_apple", version = "4.5.3")
 bazel_dep(
     name = "rules_swift",
-    version = "3.1.2",
+    version = "3.5.0",
     repo_name = "build_bazel_rules_swift",
 )
 ```
@@ -45,7 +52,10 @@ bazel_dep(
 The rule modules provide their own Apple C++ setup and Swift local-toolchain
 extensions. Before adding an app target, verify that those extensions resolve
 against the selected Xcode and that they do not replace or conflict with the
-repository's registered Mojo/C++ toolchains. The first target should be
+repository's registered Mojo/C++ toolchains. The newer Swift module also raises
+the graph's minimum `protobuf` version (3.5.0 declares `34.0.bcr.1`, while the
+root currently selects 33.5), so it requires a full dependency-owner review.
+The first target should be
 Simulator-only, use the existing `Info.plist`, and have this dependency shape:
 
 ```text
@@ -81,8 +91,10 @@ do not correspond to valid settings
 ```
 
 The diagnostic exits successfully after saving the full log so it is a
-reproducible blocker report, not a passing app build. Next action: have the
-Bazel dependency/toolchain owner resolve root visibility and the
-`apple_crosstool_top` transition/toolchain compatibility, then build a
-compile-only Simulator Swift library before declaring an application or
-claiming XCTest/UI/runtime support.
+reproducible blocker report, not a passing app build. A separate temporary
+4.5.3/3.5.0 control succeeds, but is not evidence that the root can safely
+adopt it. Next action: have the Bazel dependency/toolchain owner review module
+version selection and toolchain registration in a dedicated branch before
+making the newer pair direct root dependencies, then build a compile-only
+Simulator Swift library before declaring an application or claiming
+XCTest/UI/runtime support.

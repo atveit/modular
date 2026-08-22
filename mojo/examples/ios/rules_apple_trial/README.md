@@ -33,3 +33,11 @@ transition declares `//command_line_option:apple_crosstool_top`, which Bazel
 reports is not a valid setting. That is a rules/Bazel compatibility blocker,
 not evidence of a working application, link, signing, packaging, installation,
 or execution path.
+
+An isolated compatibility control changing only the nested module versions to
+`rules_apple` 4.5.3 and `rules_swift` 3.5.0 analyzed and built this minimal
+Simulator `.ipa` with Bazel 9.2.0, without the legacy transition failure. It
+is not checked in as the default because the root graph currently selects the
+4.1.0/3.1.2 pair transitively and the newer Swift dependency raises the minimum
+protobuf version. A dependency-owner review is required before changing the
+root graph; this fixture remains the reproducible legacy blocker.

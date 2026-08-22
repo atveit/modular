@@ -1,5 +1,8 @@
 package(default_visibility = ["//visibility:public"])
 
+load(":compilerrt_ios_bootstrap_archive.bzl", "compilerrt_ios_simulator_bootstrap_archive")
+load(":mojo_ios_static_library.bzl", "mojo_ios_static_library")
+
 # This is intentionally a source fixture rather than a runnable Bazel iOS
 # target.  The repository does not yet register rules_apple/rules_swift, and
 # the Mojo toolchain currently has macOS-only executable-link behavior.  The
@@ -21,6 +24,8 @@ filegroup(
         "mojo_ios_global_symbol_probe.mojo",
         "mojo_ios_smoke.h",
         "mojo_ios_smoke.mojo",
+        "compilerrt_ios_bootstrap_archive.bzl",
+        "mojo_ios_static_library.bzl",
         "run_pinned_mojo_air_diagnostic.sh",
         "check_compilerrt_ios_static_metadata.sh",
         "run_runtime_initialize_symbol_manifest.sh",
@@ -45,6 +50,23 @@ filegroup(
     ],
 )
 
+# Example-local diagnostic only: emits a runtime-free Simulator archive and C
+# header. It is not wired into root packaging or an ios_application target.
+mojo_ios_static_library(
+    name = "mojo_ios_static_library_smoke",
+    src = "mojo_ios_smoke.mojo",
+    header = "mojo_ios_smoke.h",
+    tags = ["manual"],
+)
+
+# Diagnostic archive only. This recompiles explicit sources with Xcode's
+# iPhoneSimulator SDK; it never repackages CompilerRTIOSStatic's host archive.
+compilerrt_ios_simulator_bootstrap_archive(
+    name = "compilerrt_ios_simulator_bootstrap_archive_diagnostic",
+    srcs = ["//KGEN:CompilerRTIOSBootstrapSources"],
+    tags = ["manual", "requires-xcode"],
+)
+
 exports_files([
     "Info.plist",
     "README.md",
@@ -58,6 +80,8 @@ exports_files([
     "mojo_ios_global_symbol_probe.mojo",
     "mojo_ios_smoke.h",
     "mojo_ios_smoke.mojo",
+    "mojo_ios_static_library.bzl",
+    "compilerrt_ios_bootstrap_archive.bzl",
     "run_pinned_mojo_air_diagnostic.sh",
     "check_compilerrt_ios_static_metadata.sh",
     "run_runtime_initialize_symbol_manifest.sh",

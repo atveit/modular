@@ -37,6 +37,7 @@ package_group(
         "//docs/...",
         "//max/python/max/_core/internal/...",
         "//max/tests/internal/API/c/...",  # Only when testing internally
+        "//mojo/examples/ios",  # Runtime-free iOS compiler probes
         "//oss/modular/bazel/...",
         "//oss/modular/docs/...",
         "//oss/modular/max/python/max/_core/internal/...",  # Only when testing internally
@@ -1025,6 +1026,19 @@ modular_cc_library(
         "//Support:SymbolExport",
         "@llvm-project//llvm:Support",
     ],
+)
+
+# Source-only access for the SDK-native iOS bootstrap diagnostic. This exposes
+# the four source files, not the host-built CompilerRT archive or its deps.
+filegroup(
+    name = "CompilerRTIOSBootstrapSources",
+    srcs = [
+        "lib/CompilerRT/Globals.cpp",
+        "lib/CompilerRT/Initialize.cpp",
+        "lib/CompilerRT/MemoryIOS.cpp",
+        "lib/CompilerRT/Support.cpp",
+    ],
+    visibility = ["//mojo/examples/ios:__pkg__"],
 )
 
 modular_cc_library(

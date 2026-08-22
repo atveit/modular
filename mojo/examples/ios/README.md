@@ -447,6 +447,23 @@ a completed runtime, link, or execution support. The helper verifies every
 member's `IOS`/`IOSSIMULATOR` load command and iOS 17 minimum version; it does
 not repackage the host-built Bazel archive.
 
+There is also a Simulator-only Bazel diagnostic archive action. Its analysis
+target can be checked without rebuilding the compiler:
+
+```sh
+./bazelw build --config=prebuilt-mojo --nobuild \
+  //mojo/examples/ios:compilerrt_ios_simulator_bootstrap_archive_diagnostic
+```
+
+When the pinned compiler target and generated LLVM headers are available, a
+normal build invokes Xcode's Simulator SDK compiler and archiver from a local,
+non-sandboxed action because this repository currently has a macOS-only Bazel
+sysroot/C++ toolchain. `//KGEN:CompilerRTIOSStatic` is an input solely to
+materialize Bazel-generated LLVM headers; the action never reads, links, or
+repackages its host archive. The checked-in shell probe is the current fresh
+Simulator compile/archive evidence; a Bazel action artifact is not claimed until
+that one-time compiler build completes in a clean environment.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,
@@ -519,6 +536,17 @@ emission. Bazel should own action inputs, target triples, SDK selection,
 archiving, C/Swift dependencies, test execution, and packaging once the
 Apple rules are registered. Bazel must not replace the Mojo compiler, and the
 Mojo compiler should not embed provisioning profiles or signing identities.
+
+### Runtime-free static-library action prototype
+
+`//mojo/examples/ios:mojo_ios_static_library_smoke` is an example-local
+prototype of that action. Its rule declares the runtime-free Mojo source and C
+header as inputs, requests `arm64-apple-ios17.0-simulator` object emission from
+the pinned `mojo-full` tool, invokes the Simulator SDK `libtool`, and is
+designed to validate the extracted archive member's `IOSSIMULATOR` metadata plus
+C ABI exports. It has no signing, app, or Mojo-runtime behavior. The iOS package has a narrow
+KGEN visibility grant for the compiler executable; it does not make KGEN
+public.
 
 For now, `//mojo/examples/ios:ios_simulator_smoke_fixture` is intentionally a
 source `filegroup`; it is not yet an `ios_application` or a runnable Bazel
