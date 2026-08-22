@@ -307,8 +307,11 @@ mojo/examples/ios/accelerate_adapter/run_accelerate_smoke.sh
 
 That probe compiles a C adapter against Accelerate.framework, links a Swift
 consumer, checks the arm64/IOSSIMULATOR load command and exported adapter
-symbol, and confirms the framework load command with otool. It is compile/link
-coverage—not yet a runtime or physical-device support claim.
+symbol, and confirms the framework load command with otool. By default it is
+compile/link-only; adding `RUN_SIMULATOR=1` packages and launches a minimal app
+and requires the `MOJO_ACCELERATE_VDSP_PASS` marker. This is direct
+Accelerate/vDSP runtime evidence—not Mojo execution, physical-device support,
+or a performance claim.
 
 ## 6. Link, sign, install, and launch SwiftUI
 
@@ -514,10 +517,10 @@ Apple libraries through a crawl-walk-run coverage program:
 
 Direct Swift ABI support is deliberately not required for this tutorial.
 
-The current checked-in Accelerate fixture is the first D8 prototype. It still
-needs Simulator execution, device execution, benchmark comparisons, and Mojo
-runtime integration before Accelerate can be promoted to a supported package
-product.
+The current checked-in Accelerate fixture is the first D8 prototype. It now has
+an opt-in Simulator runtime marker, but still needs device execution, benchmark
+comparisons, and Mojo runtime integration before Accelerate can be promoted to a
+supported package product.
 
 ### A.6 What remains before production iOS support
 

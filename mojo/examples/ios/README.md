@@ -232,8 +232,11 @@ The first direct-C framework probe is the Accelerate/vDSP adapter:
 mojo/examples/ios/accelerate_adapter/run_accelerate_smoke.sh
 ```
 
-It is compile/link evidence for a caller-owned-buffer C adapter, not yet a
-runtime, device, or performance claim.
+By default it is compile/link evidence for a caller-owned-buffer C adapter.
+With `RUN_SIMULATOR=1` it additionally packages, launches, and checks a
+deterministic vDSP result marker in the iPhone Simulator. This remains direct
+Accelerate/vDSP evidence, not Mojo execution, device coverage, or a performance
+claim.
 
 The Core ML fixture uses the corresponding Objective-C/Swift/C-ABI adapter
 shape and verifies `CoreML.framework` link artifacts for both `iphoneos` and
