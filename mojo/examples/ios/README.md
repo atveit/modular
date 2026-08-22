@@ -517,6 +517,21 @@ This validates only the emitted named-global symbol path and basic lifecycle.
 It does not wire the candidate into `CompilerRTIOSStatic`, establish general
 stdlib support, or cover `initialize_runtime`/AsyncRT.
 
+`StackTraceIOS.cpp` is a separate error-path candidate for
+`KGEN_CompilerRT_GetStackTrace`. It returns zero and clears the output pointer,
+which the standard library treats as “stack trace not collected”; it deliberately
+does not import desktop configuration, signal, or LLVM stack-trace support. The
+checked-in Error-construction probe links only this candidate plus `MemoryIOS`:
+
+```sh
+RUN_SIMULATOR=1 MOJO_IOS_ERROR_PROBE_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_error_probe.sh
+```
+
+The marker establishes construction/formatting of this emitted `Error` probe
+with stack traces unavailable. It does not validate throwing, error reporting,
+stack capture, `initialize_runtime`, or AsyncRT.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,

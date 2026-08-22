@@ -35,6 +35,19 @@ root Bazel dependency or a Mojo runtime integration. `rules_apple` may process
 and locally sign the resulting IPA as part of bundling; this control uses no
 external signing identity and never installs or launches it.
 
+`run_same_graph_provider_control.sh` is a separate disposable top-level module
+that depends on the local `modular` module and places
+`@modular//mojo/examples/ios:mojo_ios_static_library_smoke` behind a
+`cc_library` dependency. It is the bounded CcInfo-provider test: it does not
+copy a `bazel-bin` archive. The control stops at analysis, so a passing result
+does not claim app build, signing, installation, or execution.
+
+At present this control reports `BLOCKED` before query analysis: the root
+module's versionless `bazel_dep(name = "rules_mojo")` is valid only at the root
+but cannot be resolved when `modular` is a local module dependency. A
+dependency-owner change to make the root module consumable is required before
+this provider seam can be analyzed together with Apple rules.
+
 With the Bazel 9.2.0 selected for this checkout, the app target is queryable
 but analysis currently stops in `rules_apple` before any SDK action because its
 transition declares `//command_line_option:apple_crosstool_top`, which Bazel

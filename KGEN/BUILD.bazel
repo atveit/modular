@@ -952,6 +952,8 @@ modular_shared_library(
         # The experimental iOS global-table candidate is not part of the
         # desktop shared runtime; it is compiled only by its SDK fixture.
         "lib/CompilerRT/GlobalsIOS.cpp",
+        # The iOS no-stack-trace ABI candidate is likewise SDK-fixture-only.
+        "lib/CompilerRT/StackTraceIOS.cpp",
     ]),
     hdrs = glob([
         "include/KGEN/CompilerRT/*.h",

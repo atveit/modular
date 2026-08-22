@@ -316,6 +316,11 @@ The rule now also returns a `CcInfo` compilation context for its generated
 header and linking context for its generated archive, so a future same-graph
 Apple target can consume the artifact without a `bazel-bin` path. This provider
 seam is not itself Apple-rule registration, SDK declaration, or runtime support.
+The disposable same-graph control attempts that next step without copying an
+archive, but stops during Bzlmod resolution because the root declares the
+versionless `rules_mojo` dependency accepted by the main module but rejected
+when `modular` is consumed as a dependency. No Apple SDK action runs until that
+module-graph contract is repaired in a dependency-owner change.
 The expected-failure `Globals.cpp` link boundary is complemented by a separate
 `GlobalsIOS.cpp` candidate: its named/indexed lookup, insertion, destruction,
 and idempotent teardown pass a C++ Simulator consumer and an opt-in Simulator
@@ -327,6 +332,11 @@ that separate SDK-built candidate, and observes
 `MOJO_COMPILERRT_GLOBALS_MOJO_PROBE_PASS` on the Simulator. This validates the
 current named-global symbol path and basic teardown only; it is not general
 stdlib, `initialize_runtime`, or AsyncRT support.
+An additional Error-construction probe now links a separate SDK-built
+`StackTraceIOS.cpp` candidate with `MemoryIOS.cpp`, returns the documented
+zero/null “stack trace not collected” result, and observes
+`MOJO_COMPILERRT_ERROR_PROBE_PASS` on the Simulator. It does not claim throwing,
+stack capture, `initialize_runtime`, or AsyncRT support.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both

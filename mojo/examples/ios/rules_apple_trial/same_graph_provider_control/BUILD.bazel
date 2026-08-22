@@ -1,0 +1,25 @@
+load("@rules_apple//apple:ios.bzl", "ios_application")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+# This is the key same-graph edge: it consumes the local rule's CcInfo, rather
+# than declaring a generated bazel-bin archive as a source artifact.
+cc_library(
+    name = "mojo_ios_provider",
+    deps = ["@modular//mojo/examples/ios:mojo_ios_static_library_smoke"],
+)
+
+swift_library(
+    name = "same_graph_swift_library",
+    srcs = ["SameGraphApp.swift"],
+    deps = [":mojo_ios_provider"],
+)
+
+ios_application(
+    name = "same_graph_ios_application",
+    bundle_id = "com.modular.mojo.ios.samegraph",
+    families = ["iphone", "ipad"],
+    infoplists = ["Info.plist"],
+    minimum_os_version = "17.0",
+    deps = [":same_graph_swift_library"],
+)

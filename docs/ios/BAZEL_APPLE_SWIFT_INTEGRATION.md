@@ -140,3 +140,19 @@ registration and their Apple SDK/platform toolchains; the 4.5.3/3.5.0 pair
 raises protobuf selection beyond the root's current version. The app bundle is
 locally processed/signed by the rule, but the control uses no external signing
 identity and performs no installation or execution.
+
+## Same-graph provider control
+
+`rules_apple_trial/run_same_graph_provider_control.sh` creates a disposable
+top-level module with local-path dependency `modular`, then gives an Apple app
+a `cc_library` dependency on the local `mojo_ios_static_library_smoke` target.
+Unlike the archive-consumer control, it never copies `bazel-bin` artifacts.
+
+The current control stops at module resolution, before any Apple platform or
+SDK analysis: the root `modular` module declares `bazel_dep(name =
+"rules_mojo")` without a version. That is accepted for the main module but
+cannot be consumed from a dependent module, which reports a bad versionless
+`rules_mojo` dependency. The smallest remaining blocker for a true same-graph
+Apple consumer is therefore making the root module dependency graph consumable
+under Bzlmod (with dependency-owner review); no root module change was made by
+the control.
