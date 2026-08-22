@@ -14,6 +14,22 @@ executable can be installed with `simctl` when an iOS Simulator service is
 available. The runtime-free executable is not itself a SwiftUI app; the
 adjacent `swiftui_host/` fixture is the source-level SwiftUI adoption seam.
 
+## Metal AIR toolchain probe
+
+`run_metal_air_toolchain_probe.sh` compiles a checked-in handwritten MSL kernel
+to each candidate iOS AIR triple, invokes `metallib`, and records exact commands
+and `file` inspection under `/tmp/mojo-ios-metal-air-probe` by default. It is
+artifact-only: generated artifacts do not claim Mojo lowering, app packaging,
+Metal library loading, or device GPU execution. Unsupported triples report
+`SKIP`.
+
+```sh
+mojo/examples/ios/run_metal_air_toolchain_probe.sh
+```
+
+Set `MOJO_IOS_METAL_AIR_TARGETS` to a space-separated candidate list and
+`MOJO_IOS_METAL_AIR_PROBE_OUT` to select an output directory.
+
 The Mojo module imports no stdlib module, allocates no memory, and does not
 initialize the Mojo runtime. It is therefore suitable for validating the
 compiler's target-object and native Xcode linker path before the iOS static
@@ -131,6 +147,18 @@ mojo/examples/ios/accelerate_adapter/run_accelerate_smoke.sh
 
 It is compile/link evidence for a caller-owned-buffer C adapter, not yet a
 runtime, device, or performance claim.
+
+The Core ML fixture uses the corresponding Objective-C/Swift/C-ABI adapter
+shape and verifies `CoreML.framework` link artifacts for both `iphoneos` and
+`iphonesimulator`:
+
+```sh
+mojo/examples/ios/coreml_adapter/run_coreml_link_smoke.sh
+```
+
+It does not bundle a model or call Core ML, and therefore makes no prediction,
+compute-unit, ANE, runtime, device, or performance claim. See
+[`coreml_adapter/README.md`](coreml_adapter/README.md) for the artifact checks.
 
 ## SwiftUI adoption seam
 

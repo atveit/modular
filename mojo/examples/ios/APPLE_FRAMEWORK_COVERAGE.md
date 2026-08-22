@@ -40,7 +40,7 @@ appropriate tier.
 | SwiftUI | Adapter | Compile-only host exists | SwiftUI owns `App`/`View`; Mojo supplies computation and model data through C |
 | Metal | Adapter + precompiled kernels | Planned | device discovery, buffer/pipeline handles, dispatch and error conversion |
 | AVFoundation | Adapter | Planned | one bounded capture or media-buffer path with explicit callback lifetime |
-| Core ML | Adapter | Planned | model/resource handles and a typed tensor-buffer handoff |
+| Core ML | Adapter | Compile/link fixture for `iphoneos` + `iphonesimulator` | `coreml_adapter/run_coreml_link_smoke.sh`: Objective-C C-ABI adapter and Swift consumer; model loading/runtime remain untested |
 
 “All iOS libraries” is therefore a coverage process: add each public framework
 to this inventory, choose the safest tier, and attach tests. Frameworks with

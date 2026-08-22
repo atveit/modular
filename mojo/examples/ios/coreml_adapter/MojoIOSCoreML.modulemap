@@ -1,0 +1,4 @@
+module MojoIOSCoreML [system] {
+  header "mojo_ios_coreml.h"
+  export *
+}

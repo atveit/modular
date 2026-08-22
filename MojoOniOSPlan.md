@@ -205,10 +205,15 @@ focused KGEN and iOS-target Bazel tests pass, while broader cross-target
 coverage remains. D5 has a device object/archive/link probe (signing and
 installation remain intentionally skipped). D8 has a compile/link prototype
 for an Accelerate/vDSP adapter, but not yet its runtime, device, or benchmark
-gates. D6–D7 and D9–D13 remain planned and must not be described as shipped
-support. The D3 artifact chain is proven, but its original exit gate—one
-rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet
-met because this checkout still uses source fixtures and shell probes.
+gates. D9 has a matching artifact-only Core ML framework adapter fixture for
+both device and Simulator SDKs; it does not load a model or claim ANE use. D12
+has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
+triples; it does not prove Mojo lowering, app loading, or device dispatch.
+D6–D7 and the runtime portions of D9–D13 remain planned and must not be
+described as shipped support. The D3 artifact chain is proven, but its original
+exit gate—one rules_apple/rules_swift Bazel command plus XCTest/UI-test
+assertions—is not yet met because this checkout still uses source fixtures and
+shell probes.
 
 ### Scrutiny-adjusted next steps
 

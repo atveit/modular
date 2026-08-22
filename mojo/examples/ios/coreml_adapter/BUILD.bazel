@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only Objective-C/Swift/C-ABI fixture. The harness uses xcrun/swiftc/
+# clang because rules_apple/rules_swift are not registered in this checkout.
+filegroup(
+    name = "coreml_adapter_fixture",
+    srcs = [
+        "CoreMLLinkConsumer.swift",
+        "MojoIOSCoreML.modulemap",
+        "README.md",
+        "mojo_ios_coreml.h",
+        "mojo_ios_coreml.m",
+        "run_coreml_link_smoke.sh",
+    ],
+)
+
+exports_files([
+    "CoreMLLinkConsumer.swift",
+    "MojoIOSCoreML.modulemap",
+    "README.md",
+    "mojo_ios_coreml.h",
+    "mojo_ios_coreml.m",
+    "run_coreml_link_smoke.sh",
+])
