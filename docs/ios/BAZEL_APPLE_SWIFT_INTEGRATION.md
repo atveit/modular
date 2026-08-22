@@ -87,6 +87,7 @@ pre-release.
 | `rules_apple` 4.3.3 / `rules_swift` 3.1.2 | Analysis reached Apple rule implementation, then failed because Bazel's `apple` fragment lacks `multi_arch_platform` | Avoids the protobuf 34 requirement but is still Bazel-9 incompatible |
 | `rules_apple` 4.5.3 / `rules_swift` 3.5.0 | Query, analysis, and isolated Simulator IPA build pass | Requires `protobuf` 34.0.bcr.1 through rules_swift 3.5.0, so root dependency selection changes |
 | Disposable root with protobuf 34.0.bcr.1 and no protobuf patch | Graph, `CompilerRTIOSStatic`, and 70 KGEN tests pass; minimal UIKit app analysis fails because `//command_line_option:apple_platforms` is not a valid transition output under Bazel 10 | The protobuf patch can be reviewed separately; the Apple-rules/Bazel-10 transition remains the active root blocker |
+| `rules_apple` 5.0.0-rc3 / `rules_swift` 4.0.0-rc3 | Graph and minimal UIKit query pass; analysis reaches the repo-owned `macos_clang_toolchain` and stops because its configurable args have no iOS/default branch | Clears the Apple transition blocker, but requires an owner-reviewed iOS C++ toolchain branch and brings apple_support 2.6.1 plus Swift argument-parser dependency churn |
 
 The practical adoption sequence is therefore a dependency-owner branch that
 accepts and reviews the protobuf 34 upgrade (including removing or porting the
@@ -95,6 +96,14 @@ the selected Bazel release, regenerates the root lockfile, and validates the
 full repository's existing Bazel tests before wiring an iOS target. A local
 transition patch or an older Apple-rules pin is not a safe substitute for that
 graph review.
+
+The 5.0.0-rc3/4.0.0-rc3 control is the first candidate that reaches the
+repository's own C++ toolchain under Bazel 10. The next dependency-owner task
+is therefore to add an explicit iOS/Simulator branch (and declared SDK inputs)
+to that toolchain in a disposable branch, then repeat the CcInfo archive
+consumer. Do not make the RC pair or a broad macOS-toolchain fallback a root
+change solely from this control; its dependency churn is material and the
+control still has no Mojo app/runtime claim.
 
 ## Present blockers and next action
 

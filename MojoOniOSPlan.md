@@ -312,6 +312,13 @@ repository's Bazel 10 pre-release because the 4.5.3 Apple rules request
 `//command_line_option:apple_platforms` as an invalid transition output. This
 narrows the root blocker to dependency/toolchain compatibility; it is not a
 reason to change the shared root graph without owner review.
+A newer disposable Bazel-10 control with `rules_apple` 5.0.0-rc3 and
+`rules_swift` 4.0.0-rc3 clears the earlier `apple_platforms` transition and
+reaches the repository-owned `macos_clang_toolchain`. Analysis then stops
+because its configurable compiler args have Linux/macOS cases but no
+iOS/default branch. The RC pair also changes apple_support and Swift argument
+parser dependencies, so the next step is an owner-reviewed iOS toolchain
+branch, not a root dependency upgrade or a macOS fallback.
 That isolated control now also imports the generated runtime-free Mojo archive
 through `cc_import`, compiles a C caller of `mojo_add`, and builds a minimal
 Swift/iOS Simulator IPA. This proves that the archive is consumable by the
