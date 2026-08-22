@@ -568,6 +568,19 @@ complete their basic global teardown/Error-construction sequence. It is not a
 production static runtime, does not enable throwing or stack capture, and does
 not invoke `initialize_runtime` or AsyncRT.
 
+The same probe has an artifact-only device mode:
+
+```sh
+MOJO_IOS_CORE_SEED_PLATFORM=device \
+  MOJO_IOS_CORE_SEED_PROBE_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_core_seed_probe.sh
+```
+
+It recompiles the same four sources and Mojo probes for `arm64-apple-ios17.0`
+with `apple-a7`, then verifies every object and final executable has `IOS`
+minimum-OS 17 metadata. It rejects `RUN_SIMULATOR=1` and performs no device
+signing, installation, or launch.
+
 The current `initialize_runtime`/AsyncRT boundary has a checked-in discovery
 gate:
 

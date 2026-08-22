@@ -377,7 +377,10 @@ links both emitted Mojo global and Error probes, and observes
 the narrow allocation, named-global teardown, and Error-construction paths;
 the candidates remain outside `CompilerRTIOSStatic`, and no
 `initialize_runtime`, AsyncRT, TCMalloc, throwing, stack capture, concurrent
-global semantics, or device claim is made.
+global semantics, or device claim is made. The same source/probe set now has an
+artifact-only device mode: it compiles and links for
+`arm64-apple-ios17.0`/`apple-a7`, verifies `IOS`/iOS 17 metadata, and performs
+no signing, installation, or physical-device launch.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both

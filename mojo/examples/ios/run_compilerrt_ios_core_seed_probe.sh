@@ -10,6 +10,7 @@ mojo_bin="${MOJO_BIN:-${repo_root}/bazel-bin/KGEN/tools/mojo/mojo-full}"
 stdlib_path="${MOJO_STDLIB_PATH:-${repo_root}/mojo/stdlib}"
 output_root="${MOJO_IOS_CORE_SEED_PROBE_OUT:-${repo_root}/bazel-out/ios-core-seed-probe}"
 bazel_wrapper="${repo_root}/bazelw"
+requested_platform="${MOJO_IOS_CORE_SEED_PLATFORM:-simulator}"
 
 log() { printf '[ios-core-seed-probe] %s\n' "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -27,13 +28,32 @@ llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/inc
 llvm_generated_include="${bazel_bin}/external/+llvm_configure+llvm-project/llvm/include"
 [[ -d "${llvm_source_include}" && -d "${llvm_generated_include}" ]] || fail "missing LLVM headers"
 
-sdk_path="$(xcrun --sdk iphonesimulator --show-sdk-path)"
-clang_bin="$(xcrun --sdk iphonesimulator --find clang)"
-clangxx_bin="$(xcrun --sdk iphonesimulator --find clang++)"
-libtool_bin="$(xcrun --sdk iphonesimulator --find libtool)"
-target_triple="arm64-apple-ios17.0-simulator"
+case "${requested_platform}" in
+  simulator)
+    sdk_name="iphonesimulator"
+    target_triple="arm64-apple-ios17.0-simulator"
+    target_cpu="apple-m1"
+    minimum_os_flag="-mios-simulator-version-min=17.0"
+    expected_platform="IOSSIMULATOR"
+    ;;
+  device)
+    sdk_name="iphoneos"
+    target_triple="arm64-apple-ios17.0"
+    target_cpu="apple-a7"
+    minimum_os_flag="-miphoneos-version-min=17.0"
+    expected_platform="IOS"
+    [[ "${RUN_SIMULATOR:-0}" != 1 ]] || fail "device mode is artifact-only and cannot run a Simulator"
+    ;;
+  *)
+    fail "MOJO_IOS_CORE_SEED_PLATFORM must be simulator or device; got ${requested_platform}"
+    ;;
+esac
+sdk_path="$(xcrun --sdk "${sdk_name}" --show-sdk-path)"
+clang_bin="$(xcrun --sdk "${sdk_name}" --find clang)"
+clangxx_bin="$(xcrun --sdk "${sdk_name}" --find clang++)"
+libtool_bin="$(xcrun --sdk "${sdk_name}" --find libtool)"
 common_flags=(-target "${target_triple}" -isysroot "${sdk_path}"
-  -mios-simulator-version-min=17.0 -arch arm64 -std=c++20
+  "${minimum_os_flag}" -arch arm64 -std=c++20
   -DMODULAR_BUILDING_COMPILERRT -I"${repo_root}/Support/include"
   -isystem "${llvm_source_include}" -isystem "${llvm_generated_include}")
 
@@ -42,7 +62,7 @@ objects=()
 for source in "${sources[@]}"; do
   object_path="${output_root}/${source%.cpp}.o"
   "${clangxx_bin}" "${common_flags[@]}" -c "${repo_root}/KGEN/lib/CompilerRT/${source}" -o "${object_path}"
-  vtool -show-build "${object_path}" | grep -q 'platform IOSSIMULATOR' || fail "wrong platform: ${source}"
+  vtool -show-build "${object_path}" | grep -q "platform ${expected_platform}" || fail "wrong platform: ${source}"
   objects+=("${object_path}")
 done
 archive_path="${output_root}/libKGENCompilerRTIOSCoreSeedCandidate.a"
@@ -55,8 +75,8 @@ for probe in global error; do
   object_path="${output_root}/mojo_ios_${probe}_symbol_probe.o"
   log "emitting ${probe} Mojo object"
   MOJO_CRASHPAD=0 "${mojo_bin}" build --target-triple "${target_triple}" \
-    --target-cpu apple-m1 -I "${stdlib_path}" --emit object "${source_path}" -o "${object_path}"
-  vtool -show-build "${object_path}" | grep -q 'platform IOSSIMULATOR' || fail "wrong ${probe} platform"
+    --target-cpu "${target_cpu}" -I "${stdlib_path}" --emit object "${source_path}" -o "${object_path}"
+  vtool -show-build "${object_path}" | grep -q "platform ${expected_platform}" || fail "wrong ${probe} platform"
 done
 nm -u "${global_object}" | grep -qx _KGEN_CompilerRT_GetOrCreateGlobal || fail "global ABI missing"
 nm -u "${error_object}" | grep -qx _KGEN_CompilerRT_GetStackTrace || fail "error ABI missing"
@@ -64,12 +84,18 @@ nm -u "${error_object}" | grep -qx _KGEN_CompilerRT_GetStackTrace || fail "error
 consumer_object="${output_root}/core_seed_probe_main.o"
 executable_path="${output_root}/core_seed_probe"
 "${clang_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
-  -mios-simulator-version-min=17.0 -arch arm64 \
+  "${minimum_os_flag}" -arch arm64 \
   -c "${script_dir}/compilerrt_core_seed_probe_main.c" -o "${consumer_object}"
 "${clangxx_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
-  -mios-simulator-version-min=17.0 -arch arm64 \
+  "${minimum_os_flag}" -arch arm64 \
   "${consumer_object}" "${global_object}" "${error_object}" "${archive_path}" -o "${executable_path}"
 nm -u "${executable_path}" | grep -q 'KGEN_CompilerRT_' && fail "residual CompilerRT symbol"
+vtool -show-build "${executable_path}" | grep -q "platform ${expected_platform}" || fail "wrong executable platform"
+
+if [[ "${requested_platform}" == device ]]; then
+  log "PASS: device artifact compile/link evidence only; no signing, install, or launch"
+  exit 0
+fi
 
 if [[ "${RUN_SIMULATOR:-0}" != 1 ]]; then
   log "PASS: composite seed compile/link evidence only (set RUN_SIMULATOR=1 to run marker)"
