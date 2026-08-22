@@ -223,11 +223,13 @@ runtime-dependent String object with no unresolved `KGEN_CompilerRT_*`
 symbols. With `RUN_SIMULATOR=1`, it also installs and launches the probe and
 observes `MOJO_RUNTIME_STRING_PROBE_PASS`, proving allocator/String lifetime
 only; it is not full runtime execution or `initialize_runtime()` support. D7
-and the runtime portions of
-D9–D13 remain planned and must not be described as shipped support. D5b now
-also has an artifact-only XCFramework plus generated local Swift Package
-metadata smoke for the runtime-free C ABI, covering `ios-arm64` and
-`ios-arm64-simulator`; it does not build or execute a consumer app. The D3
+and the runtime portions of D9–D13 remain planned and must not be described as
+shipped support. D7 now also has a pinned-compiler Simulator object manifest
+for the three CPU-device symbols emitted by `initialize_runtime()`; it does
+not link or execute AsyncRT. D11 now has an artifact-only XCFramework,
+generated local Swift Package metadata, and a Swift consumer compile/link
+check for the runtime-free C ABI, covering `ios-arm64` and
+`ios-arm64-simulator`; it does not load or execute a consumer app. The D3
 artifact chain is proven, but its original exit gate—one
 rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet
 met because this checkout still uses source fixtures and shell probes.
@@ -235,10 +237,12 @@ The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both
 candidate `air64-apple-ios17.0` triples as unknown targets, so that is a
-confirmed compiler gap rather than an installed-compiler provenance issue. A
-GPU source using an iOS host triple plus `--target-accelerator metal:4` reaches
-the sidecar path but then fails because it requests the hard-coded
-`air64-apple-macosx` target; this is the next Metal compiler seam to fix.
+confirmed compiler gap rather than an installed-compiler provenance issue. An
+iOS CPU source using `--target-accelerator metal:4` now stops earlier with an
+actionable `Mojo iOS Metal AIR is not implemented` diagnostic, rather than
+silently selecting the hard-coded macOS AIR sidecar. The earlier sidecar
+failure remains useful historical evidence for the compiler seam, but neither
+path is an iOS AIR/metallib implementation.
 
 ### Scrutiny-adjusted next steps
 

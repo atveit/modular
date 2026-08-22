@@ -31,6 +31,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/TargetParser/Triple.h"
 
 using namespace M;
 using namespace KGEN;
@@ -504,6 +505,19 @@ ErrorOrSuccess M::parseTargetOptions(
   if (args.hasMultipleArgs(targetAcceleratorId))
     return Error(
         "too many specified target accelerators, expected exactly one");
+
+  // The current Metal accelerator constructors produce macOS AIR sidecars.
+  // Stop before that macOS-only target leaks into an explicit iOS CPU build.
+  // This is intentionally a diagnostic, not iOS AIR target registration.
+  if (isIOSMetalAcceleratorTarget(llvm::Triple(targetTriple),
+                                  targetAccelerator)) {
+    return Error("Mojo iOS Metal AIR is not implemented: target triple '" +
+                 targetTriple + "' with Metal accelerator '" +
+                 targetAccelerator +
+                 "' would select the macOS AIR sidecar. Use the iOS CPU "
+                 "target without --target-accelerator until iOS AIR lowering "
+                 "is implemented.");
+  }
 
   StringRef mcmodel = args.getLastArgValue(mcmodelId);
   if (args.hasMultipleArgs(mcmodelId))

@@ -16,6 +16,7 @@ headers_root="${output_root}/headers"
 xcframework_path="${output_root}/MojoIOSSmoke.xcframework"
 package_root="${output_root}/SwiftPackage"
 framework_name='MojoIOSSmoke'
+swift_bin="${SWIFT_BIN:-swiftc}"
 
 log() { printf '[mojo-ios-xcframework] %s\n' "$*"; }
 fail() {
@@ -27,7 +28,9 @@ command -v xcodebuild >/dev/null 2>&1 || fail 'xcodebuild is required'
 command -v xcrun >/dev/null 2>&1 || fail 'xcrun is required'
 command -v ar >/dev/null 2>&1 || fail 'ar is required'
 command -v swift >/dev/null 2>&1 || fail 'swift is required'
+command -v "${swift_bin}" >/dev/null 2>&1 || fail "SWIFT_BIN='${swift_bin}' was not found"
 [[ -f "${script_dir}/mojo_ios_smoke.h" ]] || fail 'fixture header is missing'
+[[ -f "${script_dir}/MojoIOSSmokeXCFrameworkConsumer.swift" ]] || fail 'Swift consumer fixture is missing'
 [[ ! -e "${xcframework_path}" ]] || fail "output already exists: ${xcframework_path}; choose a new MOJO_IOS_XCFRAMEWORK_OUT"
 
 mkdir -p "${output_root}" "${headers_root}"
@@ -42,6 +45,7 @@ EOF
 log 'building artifact-only Simulator archive'
 MOJO_IOS_TRIPLE='arm64-apple-ios17.0-simulator' \
 MOJO_IOS_SMOKE_OUT="${simulator_root}" \
+MOJO_IOS_SKIP_SIGNING=1 \
   "${script_dir}/run_simulator_smoke.sh"
 
 log 'building artifact-only device archive (no signing/install)'
@@ -120,6 +124,38 @@ EOF
   swift package describe --type json
 )
 
+# Use the generated Simulator XCFramework slice directly. This is deliberately
+# not an app build: no signing, installation, or execution is involved.
+simulator_slice_root="${xcframework_path}/ios-arm64-simulator"
+simulator_headers="${simulator_slice_root}/Headers"
+simulator_module_map="${simulator_headers}/module.modulemap"
+simulator_library="${simulator_slice_root}/libmojo_ios_smoke.a"
+simulator_consumer_root="${output_root}/swift-consumer-simulator"
+simulator_consumer_executable="${simulator_consumer_root}/MojoIOSSmokeXCFrameworkConsumer"
+[[ -f "${simulator_module_map}" ]] || fail 'Simulator XCFramework module map was not produced'
+[[ -f "${simulator_library}" ]] || fail 'Simulator XCFramework library was not produced'
+mkdir -p "${simulator_consumer_root}/module-cache"
+simulator_sdk_path="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+
+log 'compiling/linking artifact-only Swift consumer against Simulator XCFramework slice'
+SDKROOT="${simulator_sdk_path}" "${swift_bin}" \
+  -parse-as-library \
+  -target arm64-apple-ios17.0-simulator \
+  -sdk "${simulator_sdk_path}" \
+  -module-cache-path "${simulator_consumer_root}/module-cache" \
+  -Xcc "-I${simulator_headers}" \
+  -Xcc "-fmodule-map-file=${simulator_module_map}" \
+  "${script_dir}/MojoIOSSmokeXCFrameworkConsumer.swift" \
+  "${simulator_library}" \
+  -o "${simulator_consumer_executable}"
+
+file "${simulator_consumer_executable}"
+nm -gU "${simulator_consumer_executable}" | grep -E '(_?mojo_add)$'
+if command -v vtool >/dev/null 2>&1; then
+  vtool -show-build "${simulator_consumer_executable}" | sed -n '1,100p'
+  vtool -show-build "${simulator_consumer_executable}" | grep -q 'platform IOSSIMULATOR' || fail 'Swift consumer did not target IOSSIMULATOR'
+fi
+
 log "PASS: artifact-only XCFramework created at ${xcframework_path}"
-log 'The local Swift Package graph was described, not built for iOS or executed.'
-log 'No physical device, signing identity, app installation, or device execution was used.'
+log 'The local Swift Package graph was described; a separate direct Swift consumer linked the generated Simulator XCFramework slice. Neither was executed.'
+log 'No signing, physical device, app installation, or device execution was used.'

@@ -66,8 +66,11 @@ Set `MOJO_IOS_XCFRAMEWORK_OUT` to a new output directory when retaining
 artifacts from multiple runs. The same harness generates a local Swift Package
 inside that output directory, with a binary target for the XCFramework and a
 tiny Swift wrapper over `mojo_add`, then runs `swift package describe --type
-json`. This validates package and binary-target metadata only; it does not
-claim an iOS Swift build, link, load, or execution.
+json`. Separately, it invokes `swiftc` for `arm64-apple-ios17.0-simulator`
+against the generated XCFramework Simulator header/module-map/archive slice and
+checks the resulting Mach-O platform and `mojo_add` symbol. The package is
+described but not built; the direct consumer is compile/link-only and neither
+the package nor an app is loaded or executed.
 
 The Mojo module imports no stdlib module, allocates no memory, and does not
 initialize the Mojo runtime. It is therefore suitable for validating the
@@ -91,6 +94,10 @@ repository-pinned or locally built compiler. A compiler that requires the
 checkout's stdlib can additionally set
 `MOJO_STDLIB_PATH="$PWD/mojo/stdlib"`. Set `MOJO_IOS_SMOKE_OUT` to retain
 outputs elsewhere.
+
+Set `MOJO_IOS_SKIP_SIGNING=1` for archive/link-only consumers such as the
+XCFramework packaging harness. It omits app packaging as well, and cannot be
+combined with `RUN_SIMULATOR=1`.
 
 To request a launch when CoreSimulator is available:
 
@@ -241,6 +248,27 @@ It records the resolved `MOJO_BIN` path, compiler SHA-256/version, and
 `MOJO_STDLIB_PATH` (defaulting to this checkout's `mojo/stdlib`), and asserts
 that the emitted allocation probe references both expected aligned-allocation
 CompilerRT symbols before linking.
+
+## Runtime initialization symbol manifest
+
+`run_runtime_initialize_symbol_manifest.sh` is a Simulator-only D7 discovery
+fixture for the native symbol names used by the checked-in
+`std.runtime.initialize_runtime()` implementation:
+
+```sh
+mojo/examples/ios/run_runtime_initialize_symbol_manifest.sh
+```
+
+The pinned Mojo binary cannot directly import this checkout's public
+`std.runtime` package, so the fixture emits equivalent external symbol
+references rather than compiling the public API. Its `Int` pointer-width
+carriers are sufficient to observe arm64 symbol names, but do not validate the
+public `OptionalPointer` ABI signatures or call semantics. It emits an object
+and records the required CPU-device symbols
+(`GetCurrentCPUDevice`, `GetOrCreateCPUDevice`, and `ReleaseCPUDevice`) without
+linking or executing it. Those symbols are implemented today by the desktop
+AsyncRT CPU-device/thread-pool runtime; the manifest is evidence for a future
+explicit iOS runtime slice, not evidence that that runtime is iOS-safe.
 
 ## SwiftUI adoption seam
 

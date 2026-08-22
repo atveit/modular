@@ -8,8 +8,8 @@
 #include "KGEN/ToolCommon/CompilationOptions.h"
 #include "Target/TargetTraits.h"
 
-#include "gtest/gtest.h"
 #include "llvm/TargetParser/Triple.h"
+#include "gtest/gtest.h"
 
 using namespace M::KGEN;
 
@@ -20,11 +20,23 @@ TEST(CompilationOptionsTest, ClassifiesApplePlatforms) {
             ApplePlatform::MacOS);
   EXPECT_EQ(getApplePlatform(llvm::Triple("arm64-apple-ios17.0")),
             ApplePlatform::IOSDevice);
-  EXPECT_EQ(
-      getApplePlatform(llvm::Triple("arm64-apple-ios17.0-simulator")),
-      ApplePlatform::IOSSimulator);
+  EXPECT_EQ(getApplePlatform(llvm::Triple("arm64-apple-ios17.0-simulator")),
+            ApplePlatform::IOSSimulator);
   EXPECT_EQ(getApplePlatform(llvm::Triple("aarch64-unknown-linux-gnu")),
             ApplePlatform::None);
+}
+
+TEST(CompilationOptionsTest, ClassifiesIOSMetalAcceleratorTargets) {
+  EXPECT_TRUE(isIOSMetalAcceleratorTarget(llvm::Triple("arm64-apple-ios17.0"),
+                                          "metal:4"));
+  EXPECT_TRUE(isIOSMetalAcceleratorTarget(
+      llvm::Triple("arm64-apple-ios17.0-simulator"), "metal:4"));
+  EXPECT_TRUE(isIOSMetalAcceleratorTarget(llvm::Triple("arm64-apple-ios17.0"),
+                                          "apple-m1"));
+  EXPECT_FALSE(isIOSMetalAcceleratorTarget(
+      llvm::Triple("arm64-apple-macosx17.0"), "metal:4"));
+  EXPECT_FALSE(isIOSMetalAcceleratorTarget(llvm::Triple("arm64-apple-ios17.0"),
+                                           "sm_90"));
 }
 
 TEST(CompilationOptionsTest, ComparesCompleteTargetIdentity) {

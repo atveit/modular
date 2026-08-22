@@ -56,11 +56,16 @@ enum class ApplePlatform {
 
 ApplePlatform getApplePlatform(const llvm::Triple &triple);
 
+/// Returns whether an iOS CPU target is paired with the existing Apple Metal
+/// accelerator path. That path currently emits macOS AIR sidecars, so callers
+/// must diagnose rather than try to lower iOS AIR.
+bool isIOSMetalAcceleratorTarget(const llvm::Triple &triple,
+                                 llvm::StringRef accelerator);
+
 /// Return whether `target` differs from `host` in architecture, vendor, OS,
 /// or environment.  In particular, an arm64 macOS host and an arm64 iOS
 /// target are a cross compilation.
-bool isCrossCompilation(const llvm::Triple &target,
-                        const llvm::Triple &host);
+bool isCrossCompilation(const llvm::Triple &target, const llvm::Triple &host);
 
 /// Compare `target` with the compiler host triple.
 bool isCrossCompilation(const llvm::Triple &target);

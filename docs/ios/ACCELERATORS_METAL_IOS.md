@@ -52,15 +52,19 @@ It successfully emits the runtime-free host object for
 `arm64-apple-ios17.0-simulator` and the existing C/Simulator smoke app passes
 when invoked with `-I mojo/stdlib`. It does **not** accept either direct
 `air64-apple-ios17.0` or `air64-apple-ios17.0-simulator` triples; both fail
-before parsing with `unknown target triple`.
+early with the actionable diagnostic that Mojo-generated iOS Metal AIR is not
+implemented.
 
 The more important control is a GPU source compiled for an iOS host triple
-with `--target-accelerator metal:4`. That invocation reaches the GPU sidecar
-pipeline but then tries to create the hard-coded `air64-apple-macosx` target and
-fails with `target 'air64-apple-macosx' is not supported by this build`. This
-pinpoints the current porting seam: the host iOS target is recognized, while
-the generated Metal sidecar target is still macOS-specific. It is evidence for
-the Stage 1 target factory work below, not evidence of iOS GPU compilation.
+with `--target-accelerator metal:4`. The historical invocation reached the GPU
+sidecar pipeline and then tried to create the hard-coded
+`air64-apple-macosx` target, failing with `target 'air64-apple-macosx' is not
+supported by this build`. The compiler now preflights this combination and
+returns the explicit `Mojo iOS Metal AIR is not implemented` diagnostic before
+the macOS sidecar is selected. This pinpoints the current porting seam: the
+host iOS target is recognized, while an iOS-aware Metal sidecar target factory
+and lowering path are still missing. It is evidence for the Stage 1 target
+factory work below, not evidence of iOS GPU compilation.
 
 ## Staged implementation
 

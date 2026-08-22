@@ -37,8 +37,16 @@ ApplePlatform getApplePlatform(const llvm::Triple &triple) {
   }
 }
 
-bool isCrossCompilation(const llvm::Triple &target,
-                        const llvm::Triple &host) {
+bool isIOSMetalAcceleratorTarget(const llvm::Triple &triple,
+                                 llvm::StringRef accelerator) {
+  ApplePlatform platform = getApplePlatform(triple);
+  return (platform == ApplePlatform::IOSDevice ||
+          platform == ApplePlatform::IOSSimulator) &&
+         (accelerator.starts_with("metal:") ||
+          accelerator.starts_with("apple-m"));
+}
+
+bool isCrossCompilation(const llvm::Triple &target, const llvm::Triple &host) {
   // Do not use architecture alone here: arm64 macOS -> arm64 iOS is a
   // cross-OS compilation, and the Simulator environment is distinct from a
   // physical-device environment.
@@ -50,7 +58,7 @@ bool isCrossCompilation(const llvm::Triple &target,
 
 bool isCrossCompilation(const llvm::Triple &target) {
   return isCrossCompilation(target,
-                             llvm::Triple(llvm::sys::getDefaultTargetTriple()));
+                            llvm::Triple(llvm::sys::getDefaultTargetTriple()));
 }
 
 ErrorOrSuccess requireMaxForAccelerator(bool isMaxOnly) {

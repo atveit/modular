@@ -116,7 +116,7 @@ clang_args=(
   "${archive_path}" \
   -o "${executable_path}"
 
-if [[ "${platform}" == "simulator" ]]; then
+if [[ "${platform}" == "simulator" && "${MOJO_IOS_SKIP_SIGNING:-0}" != 1 ]]; then
   log "ad-hoc signing"
   codesign --force --sign - "${executable_path}" >/dev/null
 
@@ -126,11 +126,13 @@ if [[ "${platform}" == "simulator" ]]; then
   cp "${script_dir}/Info.plist" "${app_path}/Info.plist"
   cp "${executable_path}" "${app_path}/mojo_ios_smoke"
   codesign --force --sign - "${app_path}" >/dev/null
+elif [[ "${platform}" == "simulator" ]]; then
+  log "skipping ad-hoc signing and app packaging (MOJO_IOS_SKIP_SIGNING=1)"
 fi
 
 log "verifying Mach-O architecture, symbols, and platform metadata"
 artifacts=("${object_path}" "${archive_path}" "${executable_path}")
-if [[ "${platform}" == "simulator" ]]; then
+if [[ "${platform}" == "simulator" && -f "${app_path}/mojo_ios_smoke" ]]; then
   artifacts+=("${app_path}/mojo_ios_smoke")
 fi
 file "${artifacts[@]}"
@@ -154,6 +156,10 @@ fi
 if [[ "${RUN_SIMULATOR:-0}" != 1 ]]; then
   log "PASS: Simulator object/archive/link smoke test complete (set RUN_SIMULATOR=1 to install and launch)"
   exit 0
+fi
+
+if [[ "${MOJO_IOS_SKIP_SIGNING:-0}" == 1 ]]; then
+  fail "RUN_SIMULATOR=1 requires an app bundle; unset MOJO_IOS_SKIP_SIGNING"
 fi
 
 log "checking CoreSimulator availability"
