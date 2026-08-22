@@ -124,6 +124,13 @@ EOF
   swift package describe --type json
 )
 
+simulator_sdk_path="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+log 'building local Swift Package for the iOS Simulator (compile-only)'
+swift build \
+  --package-path "${package_root}" \
+  --sdk "${simulator_sdk_path}" \
+  --triple arm64-apple-ios17.0-simulator
+
 # Use the generated Simulator XCFramework slice directly. This is deliberately
 # not an app build: no signing, installation, or execution is involved.
 simulator_slice_root="${xcframework_path}/ios-arm64-simulator"
@@ -135,7 +142,6 @@ simulator_consumer_executable="${simulator_consumer_root}/MojoIOSSmokeXCFramewor
 [[ -f "${simulator_module_map}" ]] || fail 'Simulator XCFramework module map was not produced'
 [[ -f "${simulator_library}" ]] || fail 'Simulator XCFramework library was not produced'
 mkdir -p "${simulator_consumer_root}/module-cache"
-simulator_sdk_path="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 
 log 'compiling/linking artifact-only Swift consumer against Simulator XCFramework slice'
 SDKROOT="${simulator_sdk_path}" "${swift_bin}" \
@@ -157,5 +163,5 @@ if command -v vtool >/dev/null 2>&1; then
 fi
 
 log "PASS: artifact-only XCFramework created at ${xcframework_path}"
-log 'The local Swift Package graph was described; a separate direct Swift consumer linked the generated Simulator XCFramework slice. Neither was executed.'
+log 'The local Swift Package graph was described and built for the Simulator; a separate direct Swift consumer linked the generated Simulator XCFramework slice. Neither was executed.'
 log 'No signing, physical device, app installation, or device execution was used.'

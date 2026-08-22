@@ -228,13 +228,19 @@ compiles that allocator with the iPhoneSimulator SDK and links the
 runtime-dependent String object with no unresolved `KGEN_CompilerRT_*`
 symbols. With `RUN_SIMULATOR=1`, it also installs and launches the probe and
 observes `MOJO_RUNTIME_STRING_PROBE_PASS`, proving allocator/String lifetime
-only; it is not full runtime execution or `initialize_runtime()` support. D7
-and the runtime portions of D9–D13 remain planned and must not be described as
+only; it is not full runtime execution or `initialize_runtime()` support.
+Additional D6 manifests now record the allocation, stack-trace, and global
+table symbols required by narrow `Error` and `_Global` stdlib operations on
+both iOS triples; they are dependency evidence only. The member-level runtime
+metadata checker also proves that the current Bazel `CompilerRTIOSStatic`
+archive is host `MACOS` and rejects it, while the SDK-compiled allocator slice
+passes as `IOSSIMULATOR`. The remaining D7 and runtime portions of D9–D13
+remain planned and must not be described as
 shipped support. D7 now also has a pinned-compiler Simulator object manifest
 for the three CPU-device symbols emitted by `initialize_runtime()`; it does
-not link or execute AsyncRT. D11 now has an artifact-only XCFramework,
-generated local Swift Package metadata, and a Swift consumer compile/link
-check for the runtime-free C ABI, covering `ios-arm64` and
+not link or execute AsyncRT. D11 now has an artifact-only XCFramework, a
+generated local Swift Package metadata and iOS Simulator build, and a separate
+Swift consumer compile/link check for the runtime-free C ABI, covering `ios-arm64` and
 `ios-arm64-simulator`; it does not load or execute a consumer app. The D3
 artifact chain is proven, but its original exit gate—one
 rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet

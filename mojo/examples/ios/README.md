@@ -66,11 +66,11 @@ Set `MOJO_IOS_XCFRAMEWORK_OUT` to a new output directory when retaining
 artifacts from multiple runs. The same harness generates a local Swift Package
 inside that output directory, with a binary target for the XCFramework and a
 tiny Swift wrapper over `mojo_add`, then runs `swift package describe --type
-json`. Separately, it invokes `swiftc` for `arm64-apple-ios17.0-simulator`
-against the generated XCFramework Simulator header/module-map/archive slice and
-checks the resulting Mach-O platform and `mojo_add` symbol. The package is
-described but not built; the direct consumer is compile/link-only and neither
-the package nor an app is loaded or executed.
+json` and `swift build` for `arm64-apple-ios17.0-simulator` with the
+`iphonesimulator` SDK. Separately, it invokes `swiftc` against the generated
+XCFramework Simulator header/module-map/archive slice and checks the resulting
+Mach-O platform and `mojo_add` symbol. These are compile/link-only checks;
+neither the package nor an app is loaded or executed.
 
 The Mojo module imports no stdlib module, allocates no memory, and does not
 initialize the Mojo runtime. It is therefore suitable for validating the
@@ -94,6 +94,22 @@ It checks the emitted C ABI export plus Darwin `__error` and
 formatting/output fixture's CompilerRT dependency. This is compile evidence
 only: it does not establish SIMD code quality, successful static-runtime
 linking, libc-output correctness, or execution on Simulator/device.
+
+## Narrow stdlib runtime symbol manifests
+
+`run_stdlib_runtime_symbol_manifests.sh` emits—not links—two small probes for
+both arm64 iOS triples: `Error` construction/formatting and lazy `std.ffi._Global`
+storage. It records the undefined symbols and checks the expected dependency
+surface (`KGEN_CompilerRT_GetStackTrace` for the error probe and
+`KGEN_CompilerRT_GetOrCreateGlobal` for the global probe, plus allocation/free).
+
+```sh
+mojo/examples/ios/run_stdlib_runtime_symbol_manifests.sh
+```
+
+These are dependency manifests only. They do not validate ABI signatures,
+thread safety, global lifetime, error behavior, static-runtime contents,
+linking, or runtime execution.
 
 For this C-ABI fixture, `mojo build --emit exe` is not an iOS linker probe: it
 intentionally has no `main`, so the driver stops with `module does not contain
@@ -256,6 +272,26 @@ the probe; the required `MOJO_RUNTIME_STRING_PROBE_PASS` marker then proves the
 allocator and String lifetime path on Simulator. It still does not prove
 `initialize_runtime()`, AsyncRT, repeated runtime initialization, or clean
 process teardown for the full runtime.
+
+`//KGEN:CompilerRTIOSStatic` is currently built by the host Bazel
+configuration, so its archive must be inspected before it is supplied here:
+
+```sh
+./bazelw build --config=build-mojo //KGEN:CompilerRTIOSStatic
+mojo/examples/ios/check_compilerrt_ios_static_metadata.sh
+```
+
+The default check expects an `IOSSIMULATOR` archive for
+`arm64-apple-ios17.0-simulator`; use `MOJO_IOS_RUNTIME_TRIPLE=arm64-apple-ios17.0`
+for a device archive. It extracts every archive member and rejects `MACOS`
+metadata. The current host-built archive is therefore expected to fail this
+check. The minimal full-runtime recipe is to make the Bazel C++ compile actions
+target the matching `iphoneos` or `iphonesimulator` SDK (`-target`, `-isysroot`,
+and the iOS minimum-version flag), archive those SDK-targeted objects with that
+SDK's `libtool -static`, then rerun this member-level check before the existing
+link probe. `run_static_runtime_link_probe.sh` already demonstrates the same
+recipe for its intentionally allocator-only `MemoryIOS.cpp` slice; it is not a
+recipe for repackaging host-built `CompilerRTIOSStatic` objects.
 
 Set `RUN_SIMULATOR=1` to opt into the narrow allocator/String lifetime gate:
 
