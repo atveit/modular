@@ -77,9 +77,12 @@ The link probe emits a SwiftUI arm64 iOS executable for the selected
 device), verifies the `IOSSIMULATOR`/`IOS` load command and Mojo symbols, and
 packages a minimal ad-hoc signed `.app`. By default it stops at packaging; with
 `RUN_SIMULATOR=1` it also installs and launches the app in an available iPhone
-Simulator. The direct Simulator path has been verified to show the Mojo-returned
-greeting and arithmetic; this is not a physical-device claim and it does not
-provide XCTest coverage. In environments where Swift emits a benign
+Simulator, then captures `swiftui-simulator.png` plus a SHA-256 in the selected
+link output directory. `ContentView` preconditions the expected Mojo greeting
+and arithmetic. The image/hash is reproducible visual evidence, but it is not
+a textual/pixel assertion, XCTest, UI automation, or a physical-device claim.
+Set `MOJO_IOS_SWIFTUI_SETTLE_SECONDS` (default: `1`) if a Simulator needs more
+time before the capture. In environments where Swift emits a benign
 `using sysroot for 'MacOSX' but targeting 'iPhone'` warning, `vtool` remains the
 source of truth for the final platform metadata. The controlled probe showed
 that `swiftc -sdk <iphonesimulator SDK>` alone still emitted that warning; the

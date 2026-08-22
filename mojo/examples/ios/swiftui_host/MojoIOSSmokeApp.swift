@@ -3,6 +3,7 @@ import SwiftUI
 import MojoIOSSmoke
 
 private let mojoMessageLength: Int64 = 23
+private let expectedMojoMessage = "Hello from Mojo on iOS."
 
 private func messageFromMojo() -> String {
     var bytes = [UInt8](repeating: 0, count: Int(mojoMessageLength))
@@ -17,8 +18,15 @@ private func messageFromMojo() -> String {
 }
 
 struct ContentView: View {
-    private let sum = mojo_add(20, 22)
-    private let message = messageFromMojo()
+    private let sum: Int64
+    private let message: String
+
+    init() {
+        sum = mojo_add(20, 22)
+        message = messageFromMojo()
+        precondition(sum == 42)
+        precondition(message == expectedMojoMessage)
+    }
 
     var body: some View {
         VStack(spacing: 12) {

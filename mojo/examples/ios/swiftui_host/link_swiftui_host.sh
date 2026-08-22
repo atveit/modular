@@ -103,6 +103,12 @@ if [[ -z "${device_udid}" ]]; then
 fi
 
 app_id="com.modular.mojo.ios.smoke"
+screenshot_path="${output_root}/swiftui-simulator.png"
+settle_seconds="${MOJO_IOS_SWIFTUI_SETTLE_SECONDS:-1}"
+[[ "${settle_seconds}" =~ ^[0-9]+$ ]] || {
+  log "ERROR: MOJO_IOS_SWIFTUI_SETTLE_SECONDS must be a non-negative integer" >&2
+  exit 1
+}
 log "booting ${device_udid}"
 xcrun simctl boot "${device_udid}" 2>/dev/null || true
 xcrun simctl bootstatus "${device_udid}" -b
@@ -110,4 +116,9 @@ log "installing ${app_path} on ${device_udid}"
 xcrun simctl install "${device_udid}" "${app_path}"
 log "launching ${app_id}"
 xcrun simctl launch "${device_udid}" "${app_id}"
-log "PASS: SwiftUI Simulator launch requested"
+sleep "${settle_seconds}"
+xcrun simctl io "${device_udid}" screenshot "${screenshot_path}"
+file "${screenshot_path}"
+shasum -a 256 "${screenshot_path}"
+log "PASS: SwiftUI Simulator launch and screenshot artifact captured at ${screenshot_path}"
+log "ContentView preconditions its expected Mojo C-ABI values. The screenshot/hash is reproducible visual evidence, not XCTest, UI automation, automated pixel/text validation, root Bazel app, or physical-device evidence."
