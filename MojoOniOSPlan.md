@@ -132,6 +132,32 @@ logic must compare architecture, operating system, and target environment.
 Device-specific CPUs such as `apple-a17` may be used for controlled benchmark
 builds, but never as the baseline for generally distributed binaries.
 
+### iOS and iPadOS support model
+
+For the initial AOT native-library scope, iPhone and iPad are one Apple device
+target family: use the same `arm64-apple-ios<version>` device triple, Apple
+device SDK family, Darwin ABI, static runtime, and CPU/SIMD implementation. An
+iPad does not require a separate Mojo backend or a fictional `ipados` target
+triple. The app target communicates the supported families through packaging
+metadata (`UIDeviceFamily`, represented by Xcode’s `TARGETED_DEVICE_FAMILY`;
+Apple documents values for iPhone and iPad in its
+[build settings reference](https://developer.apple.com/documentation/xcode/build-settings-reference)).
+
+The meaningful differences belong above the Mojo library boundary. iPadOS
+apps may need scene-based lifecycle handling, multiple windows, resizable
+Stage Manager layouts, external-display behavior, pointer/keyboard workflows,
+and document-oriented UI. Apple’s [desktop-class iPad guidance](https://developer.apple.com/documentation/UIKit/building-a-desktop-class-ipad-app)
+and [multiple-window guidance](https://developer.apple.com/documentation/uikit/supporting-multiple-windows-on-ipad)
+describe those host responsibilities. SwiftUI/UIKit owns them; Mojo receives
+stable C callbacks, handles, and buffers.
+
+Do not infer “iPad” from the compiler target: the native library can be reused
+by an iPhone-only, iPad-only, or universal app. If behavior genuinely differs,
+the host should pass an explicit configuration or query the device idiom at
+runtime. The support matrix must nevertheless test both iPhone and iPad
+Simulator families, then at least one physical device in each family before
+calling the app package universal.
+
 ## Staged Delivery Ladder
 
 The thematic phases below are implemented through independently reviewable
@@ -150,7 +176,7 @@ larger destination.
 | D4 — First-class target plumbing | Compiler target classification, CPU defaults, `--emit static-lib`, focused unit tests | iOS device and Simulator metadata, same-arch cross-compilation tests, and unchanged macOS/Linux tests |
 | D5 — Device object/archive | `arm64-apple-ios17.0` object and static archive | `IOS` load command, conservative `apple-a7` baseline, device clang link, and no accidental Simulator slice |
 | D5a — Physical device artifact | Development-signed runtime-free device `.app` plus install/launch transcript | Paired iPhone/iPad, Developer Mode, provisioning/signing, `devicectl` install, and process launch with captured output |
-| D5b — Physical visible “Hello from Mojo” | Development-signed SwiftUI `.app` showing Mojo-returned text and `20 + 22 = 42` | Device SwiftUI link, signing/install/launch, and a captured on-device screen or UI-test assertion |
+| D5b — Physical visible “Hello from Mojo” | Development-signed SwiftUI `.app` showing Mojo-returned text and `20 + 22 = 42` | Device SwiftUI link, signing/install/launch, and a captured on-device screen or UI-test assertion; exercise iPhone and iPad hosts |
 | D5c — Optional internal TestFlight tracer | Distribution-signed IPA containing the SwiftUI tracer app | App Store Connect record, application identifier in the profile, successful upload/processing, and installation through an internal TestFlight group |
 | D6 — Static runtime and core stdlib | App-safe static CompilerRT plus supported stdlib subset | Allocation, errors, strings, files, repeated initialization, and threading on Simulator without unresolved runtime symbols |
 | D7 — CPU/SIMD/threading package | Reusable core library with correctness tests and device benchmark app | NEON/vector inspection, multicore correctness/scaling, C-boundary overhead, and no unexplained Swift regression |
@@ -627,7 +653,7 @@ until its corresponding tests run in the intended target environment.
 | Runtime | Static link; repeated initialization; globals; allocation; errors; threading; process-lifetime shutdown; dead stripping; no unresolved or duplicate runtime symbols | 3 |
 | Standard library | Compile-only coverage for every module; runtime coverage for the supported subset; explicit diagnostics for restricted or unavailable APIs | 3 |
 | Swift integration | Swift unit tests for every exported ABI; caller-owned buffer and opaque-handle tests; callback and error-path coverage | 1–6 |
-| Application integration | SwiftUI UI test; Simulator build/install/launch; runtime-free physical artifact launch; visible SwiftUI physical “Hello from Mojo”; clean XCFramework consumer | 1, D5a–D5b, and 4 |
+| Application integration | SwiftUI UI test; iPhone and iPad Simulator build/install/launch; runtime-free physical artifact launch; visible SwiftUI physical “Hello from Mojo”; clean XCFramework consumer | 1, D5a–D5b, and 4 |
 | Compatibility | No macOS or Linux regression; configurable deployment target with iOS 17 as the tested baseline | Every phase |
 | CPU performance | On-device scalar, SIMD, allocation, C-boundary, and threading baselines; recorded toolchain, device, thermal, latency, throughput, memory, and energy context | 5 |
 | Metal performance | Correctness and on-device measurements against MSL/MPS only after the GPU phase; no Simulator performance claims | 7 |
