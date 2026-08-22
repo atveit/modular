@@ -1,6 +1,9 @@
 # Mojo on iOS Roadmap
 
-**Status:** In progress — Simulator path and device SwiftUI artifact path are implemented; physical signing/launch remains the next gate
+**Status:** In progress — runtime-free C ABI, narrow allocator/String execution,
+and the direct SwiftUI Simulator launch are demonstrated; the canonical Bazel
+`rules_apple`/`rules_swift` + XCTest gate and physical signing/launch remain
+staged work
 **Evidence last verified:** August 22, 2026
 **Initial deployment baseline:** iOS and iPadOS 17
 
@@ -206,13 +209,19 @@ line, artifact hashes, symbol/load-command checks, test result, and known
 limitations. This makes each checkpoint independently auditable by a skeptical
 consumer.
 
-**Current checkpoint:** D0–D3 are demonstrated by the checked-in smoke and
-SwiftUI link/launch tutorial. D4 is implemented in the compiler and stdlib;
+**Current checkpoint:** D0–D2 and the narrow D6 allocator/String Simulator
+launch are demonstrated by checked-in shell probes. The direct SwiftUI
+source/link harness has also been installed and launched in an arm64 iPhone 17
+Pro Simulator; the captured screen shows the Mojo-returned greeting and
+`20 + 22 = 42`. D3's stricter canonical exit gate—`rules_apple`/`rules_swift`
+integration plus XCTest/UI-test assertions—remains open. D4 is implemented in
+the compiler and stdlib;
 focused KGEN and iOS-target Bazel tests pass, while broader cross-target
 coverage remains. The repository-built driver also emits a genuine static
 archive directly with `--emit static-lib` for both the Simulator and device
 triples, while the independently installed 1.0.0b1 compiler still rejects
-that option. D5 has a device object/archive/link probe (signing and
+that option at option parsing, before it selects any target runtime or linker.
+D5 has a device object/archive/link probe (signing and
 installation remain intentionally skipped). D8 has a compile-only LLVM
 inventory covering builtins, explicit SIMD, math, Darwin errno, clocks,
 formatting, and libc output for both iOS triples, plus a compile/link
@@ -235,10 +244,13 @@ both iOS triples; they are dependency evidence only. The member-level runtime
 metadata checker also proves that the current Bazel `CompilerRTIOSStatic`
 archive is host `MACOS` and rejects it, while the SDK-compiled allocator slice
 passes as `IOSSIMULATOR`. The remaining D7 and runtime portions of D9–D13
-remain planned and must not be described as
-shipped support. D7 now also has a repository-built-compiler Simulator object
-manifest for the three CPU-device symbols plus the global-table symbol emitted
-by the public `initialize_runtime()` path; it does not link or execute AsyncRT.
+remain planned and must not be described as shipped support. D7 has a
+Simulator-only external-symbol manifest for the three CPU-device names reached
+by the checked-in `initialize_runtime()` implementation. Because the pinned
+compiler cannot import this checkout's public `std.runtime` package, the
+fixture uses pointer-width `Int` carriers solely to emit those arm64 symbol
+names; it does not validate public `OptionalPointer` ABI signatures, call
+semantics, link, or execute AsyncRT.
 D11 now has an artifact-only XCFramework, a
 generated local Swift Package metadata and iOS Simulator build, and a separate
 Swift consumer compile/link check for the runtime-free C ABI, covering `ios-arm64` and

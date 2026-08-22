@@ -13,6 +13,7 @@ filegroup(
         "README.md",
         "compile_swiftui_host.sh",
         "link_swiftui_host.sh",
+        "run_bazel_swiftui_diagnostic.sh",
     ],
 )
 
@@ -22,4 +23,5 @@ exports_files([
     "README.md",
     "compile_swiftui_host.sh",
     "link_swiftui_host.sh",
+    "run_bazel_swiftui_diagnostic.sh",
 ])

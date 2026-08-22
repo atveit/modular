@@ -267,7 +267,9 @@ mojo/examples/ios/run_static_runtime_link_probe.sh
 Set `MOJO_IOS_COMPILERRT_ARCHIVE` to add a proposed full runtime archive after
 the allocator slice. The script uses Xcode's `clang++` and fails if the linked
 executable retains a `KGEN_CompilerRT_` undefined symbol. A clean link remains
-link-only evidence. Set `RUN_SIMULATOR=1` to package, sign, install, and launch
+link-only evidence. It also invokes the member-level metadata checker on the
+newly created allocator archive, requiring its sole member to report
+`IOSSIMULATOR` before linking. Set `RUN_SIMULATOR=1` to package, sign, install, and launch
 the probe; the required `MOJO_RUNTIME_STRING_PROBE_PASS` marker then proves the
 allocator and String lifetime path on Simulator. It still does not prove
 `initialize_runtime()`, AsyncRT, repeated runtime initialization, or clean

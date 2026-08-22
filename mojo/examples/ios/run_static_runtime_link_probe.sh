@@ -90,6 +90,10 @@ file "${allocator_object_path}" "${allocator_archive_path}"
 if command -v vtool >/dev/null 2>&1; then
   vtool -show-build "${allocator_object_path}" | sed -n '1,40p'
 fi
+log "validating allocator archive member metadata"
+MOJO_IOS_COMPILERRT_ARCHIVE="${allocator_archive_path}" \
+MOJO_IOS_RUNTIME_TRIPLE="${target_triple}" \
+  "${script_dir}/check_compilerrt_ios_static_metadata.sh"
 
 log "compiling native C consumer"
 "${clang_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
