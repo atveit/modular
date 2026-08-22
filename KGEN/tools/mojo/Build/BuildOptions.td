@@ -39,11 +39,12 @@ defm emitted_file_type: CommandOptionWithValues<
             "\n\n"
             "* `exe` (default): emit an executable binary file.\n"
             "* `shared-lib`: emit a shared (dynamic) library.\n"
+            "* `static-lib`: emit a static archive containing the target object.\n"
             "* `object`: (EXPERIMENTAL) emit a single object file.\n"
             "* `llvm`: emit unoptimized LLVM IR.\n"
             "* `llvm-bitcode`: emit bitcode of unoptimized LLVM IR.\n"
             "* `asm`: emit target assembly. For GPU targets, also emits a\n"
             "  sidecar file per kernel alongside the host assembly: `.ptx`\n"
             "  for NVIDIA, `.amdgcn` for AMD, `.ll` for Metal.">,
-  Values<"exe,shared-lib,object,llvm,llvm-bitcode,asm">
+  Values<"exe,shared-lib,static-lib,object,llvm,llvm-bitcode,asm">
 >;

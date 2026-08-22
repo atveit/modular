@@ -1,0 +1,27 @@
+package(default_visibility = ["//visibility:public"])
+
+# This is intentionally a source fixture rather than a runnable Bazel iOS
+# target.  The repository does not yet register rules_apple/rules_swift, and
+# the Mojo toolchain currently has macOS-only executable-link behavior.  The
+# shell harness performs the target-object/archive/link smoke test with the
+# host Mojo compiler and Xcode's iPhone Simulator SDK.
+filegroup(
+    name = "ios_simulator_smoke_fixture",
+    srcs = [
+        "Info.plist",
+        "README.md",
+        "mojo_ios_smoke.h",
+        "mojo_ios_smoke.mojo",
+        "run_simulator_smoke.sh",
+        "smoke_main.c",
+    ],
+)
+
+exports_files([
+    "Info.plist",
+    "README.md",
+    "mojo_ios_smoke.h",
+    "mojo_ios_smoke.mojo",
+    "run_simulator_smoke.sh",
+    "smoke_main.c",
+])

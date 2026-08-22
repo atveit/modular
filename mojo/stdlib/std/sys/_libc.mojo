@@ -176,7 +176,7 @@ def _get_environ() -> (
     comptime _EnvpType = OptionalPointer[
         Optional[CStringSlice[ImmutAnyOrigin]], ImmutAnyOrigin
     ]
-    comptime if CompilationTarget.is_macos():
+    comptime if CompilationTarget.is_darwin():
         # _NSGetEnviron() from <crt_externs.h> returns char ***,
         # a pointer to the `environ` variable.
         return external_call[

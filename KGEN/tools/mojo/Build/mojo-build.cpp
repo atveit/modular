@@ -445,6 +445,12 @@ enum class OutputType {
   //
   // Produced when `--emit shared-lib` is specified.
   sharedLibrary,
+  // Produce a static archive containing the target object. This deliberately
+  // does not link CompilerRT; consumers choose and package a target-compatible
+  // runtime (or use runtime-free exports) through their native toolchain.
+  //
+  // Produced when `--emit static-lib` is specified.
+  staticLibrary,
   // Produce an object file(.o) containing machine code.
   //
   // Produced when `--emit object` is specified.
@@ -555,6 +561,10 @@ compileModuleToArchive(const State &state, AsyncRT::CPUDevice &cpuDevice,
     if (symtab.lookup("main"))
       return state.reportError(
           "shared library should not contain a 'main' function");
+    break;
+  case OutputType::staticLibrary:
+    // A static archive can contain either exported functions or a main
+    // function. The native consumer decides how to link it.
     break;
   case OutputType::llvm:
   case OutputType::llvmBitcode: {
@@ -684,6 +694,8 @@ static int linkOutput(OutputType outputType, const State &state,
       //  that `mojo` itself was compiled for.
       // Returns `foo.(so|dylib|dll)` for a source file called `foo.mojo`.
       return PlatformLibrary::getSharedLibraryName(inputBaseName);
+    case OutputType::staticLibrary:
+      return (inputBaseName + libExt).str();
     case OutputType::llvm:
       return (inputBaseName + ".ll").str();
     case OutputType::llvmBitcode:
@@ -742,6 +754,21 @@ static int linkOutput(OutputType outputType, const State &state,
                                llvm::toString(std::move(err)));
     }
 
+    return EXIT_SUCCESS;
+  }
+
+  // A static library is the target-neutral hand-off from Mojo to a native
+  // Apple/Bazel/Xcode toolchain. Do not pull in the host CompilerRT or invoke
+  // the host linker here: the archive must remain a target object archive and
+  // the consumer is responsible for selecting a compatible runtime.
+  if (outputType == OutputType::staticLibrary) {
+    if (llvm::Error err = llvm::writeToOutput(outputName, [&](raw_ostream &os) {
+          os << archive->getBuffer();
+          return llvm::Error::success();
+        })) {
+      return state.reportError("unable to write static library: " +
+                               llvm::toString(std::move(err)));
+    }
     return EXIT_SUCCESS;
   }
 
@@ -931,6 +958,8 @@ static int build(const State &subcommandState) {
     // We have a static archive at this point, go ahead and turn it into a
     // dynamic library.
     outputType = OutputType::sharedLibrary;
+  } else if (emitFileType == "static-lib") {
+    outputType = OutputType::staticLibrary;
   } else if (emitFileType == "llvm") {
     outputType = OutputType::llvm;
   } else if (emitFileType == "llvm-bitcode") {

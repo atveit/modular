@@ -24,6 +24,18 @@ const HostTraits &HostTraits::get() {
 }
 
 llvm::StringRef HostTraits::defaultCPU(const llvm::Triple &triple) const {
+  // iOS device and Simulator are different deployment environments even on
+  // arm64.  Keep distributed device code at the conservative A7 baseline;
+  // the Simulator runs on Apple Silicon and can use the M1 baseline.
+  switch (getApplePlatform(triple)) {
+  case ApplePlatform::IOSDevice:
+    return "apple-a7";
+  case ApplePlatform::IOSSimulator:
+    return "apple-m1";
+  default:
+    break;
+  }
+
   // 32-bit ARM (arm/armeb) has no host-CPU default; pin it to the arch's
   // baseline CPU.
   if (triple.isARM())

@@ -40,6 +40,31 @@ struct object_creator;
 
 namespace M::KGEN {
 
+/// Apple platform classification used by the compiler driver.
+///
+/// iOS device and Simulator are intentionally distinct targets even though
+/// both use the arm64 ISA.  Keeping this classification in the target layer
+/// lets code-generation and build plumbing distinguish the target operating
+/// system/environment without making the standard library depend on driver
+/// implementation details.
+enum class ApplePlatform {
+  None,
+  MacOS,
+  IOSDevice,
+  IOSSimulator,
+};
+
+ApplePlatform getApplePlatform(const llvm::Triple &triple);
+
+/// Return whether `target` differs from `host` in architecture, vendor, OS,
+/// or environment.  In particular, an arm64 macOS host and an arm64 iOS
+/// target are a cross compilation.
+bool isCrossCompilation(const llvm::Triple &target,
+                        const llvm::Triple &host);
+
+/// Compare `target` with the compiler host triple.
+bool isCrossCompilation(const llvm::Triple &target);
+
 /// Per-target metadata dispatched by triple. Carries only cheap, broadly-useful
 /// facts about a target (output-file extensions, accelerator arch tables); the
 /// heavy codegen behavior stays on `TargetBackend` and the MLIR-lowering hooks

@@ -22,6 +22,7 @@
 #include "Support/Compiler/Diags.h"
 #include "Support/MArchTarget/MArchTarget.h"
 #include "Support/MDialect/MAttrs.h"
+#include "Target/TargetTraits.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/Timing.h"
 #include "llvm/ADT/StringExtras.h"
@@ -635,6 +636,12 @@ ErrorOrSuccess M::parseTargetOptions(
   if (targetOr.isError())
     return targetOr.takeError();
   target = targetOr.takeValue();
+
+  // An explicit iOS target is cross compilation even when the host and target
+  // share arm64.  Preserve accelerator cross-compilation semantics as well.
+  compilationOptions.isCrossCompilation =
+      isCrossCompilation(llvm::Triple(compilationOptions.targetTriple)) ||
+      !compilationOptions.targetAccelerator.empty();
 
   return success();
 }

@@ -16,6 +16,8 @@
 #include "Target/TargetTraits.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Host.h"
+#include "llvm/TargetParser/Triple.h"
 #include <string>
 
 using namespace M;
@@ -157,10 +159,10 @@ void CompilationOptions::setDefaultCPU() {
       traits ? traits->defaultCPU(triple) : llvm::StringRef();
   if (!targetDefault.empty()) {
     targetCpu = targetDefault.str();
-  } else if (triple.getArch() !=
-             llvm::Triple(llvm::sys::getDefaultTargetTriple()).getArch()) {
-    // When cross-compiling, the host CPU is invalid for the target arch.
-    // Clear it so LLVM selects the target's baseline CPU instead.
+  } else if (M::KGEN::isCrossCompilation(triple)) {
+    // When cross-compiling, the host CPU is invalid for the target
+    // architecture or operating system. Clear it so LLVM selects the
+    // target's baseline CPU instead.
     targetCpu = "";
   } else {
     // Native target with no explicit CPU: use the host CPU.

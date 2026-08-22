@@ -135,7 +135,7 @@ comptime MAX_PATH = _get_max_path()
 def _get_max_path() -> Int:
     comptime if CompilationTarget.is_linux():
         return 4096
-    elif CompilationTarget.is_macos():
+    elif CompilationTarget.is_darwin():
         return 1024
     # Default POSIX limit
     else:
@@ -146,7 +146,7 @@ def _c_long_dtype[unsigned: Bool = False]() -> DType:
     # https://en.wikipedia.org/wiki/64-bit_computing#64-bit_data_models
 
     comptime if is_64bit() and (
-        CompilationTarget.is_macos() or CompilationTarget.is_linux()
+        CompilationTarget.is_darwin() or CompilationTarget.is_linux()
     ):
         # LP64: long is 64-bit on 64-bit systems (e.g. x86_64 or aarch64)
         return DType.uint64 if unsigned else DType.int64

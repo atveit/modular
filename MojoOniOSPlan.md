@@ -1,0 +1,460 @@
+# Mojo on iOS Roadmap
+
+**Status:** Planning
+**Evidence last verified:** August 22, 2026
+**Initial deployment baseline:** iOS and iPadOS 17
+
+## Summary
+
+This document describes an upstream-oriented path from Mojo's current partial
+cross-compilation capabilities to production-quality Mojo libraries for iPhone
+and iPad.
+
+The initial application model is deliberately narrow: SwiftUI owns the app
+lifecycle, while Mojo is ahead-of-time compiled on macOS into a static native
+library and exposed to Swift through a stable C ABI. Device and Simulator
+variants are packaged as an XCFramework and consumed through a local Swift
+Package wrapper.
+
+The roadmap locks in these decisions:
+
+- The minimum deployment target is iOS/iPadOS 17.
+- The first target is the arm64 iOS Simulator on Apple Silicon, followed by
+  arm64 physical devices.
+- SwiftUI owns application lifecycle, UI, scene management, and Apple framework
+  object lifetimes.
+- Mojo supplies reusable computation and systems code through an AOT-compiled
+  static library and C ABI.
+- Distribution uses separate device and Simulator variants in an XCFramework,
+  wrapped by a local Swift Package.
+- Initial scope is the Mojo language, core standard library, CPU/SIMD,
+  threading, and native-library integration.
+- Later scope includes Apple SDK bindings and Mojo-generated Metal compute
+  kernels.
+- On-device Mojo JIT, REPL, or compiler support, Python interoperability,
+  direct Swift ABI support, direct SwiftUI declarations from Mojo, and the full
+  MAX runtime are initially out of scope.
+
+Official Mojo guidance already permits cross-compiling objects, but expects an
+external target toolchain and target-compatible runtime libraries to perform
+the final link. The first supported iOS workflow should embrace that contract
+instead of trying to make the host-oriented executable driver own Xcode's
+linking and signing responsibilities. See
+[Mojo compilation targets](https://docs.modular.com/mojo/tools/compilation/).
+
+## Verified Starting Point
+
+The following observations were made on August 22, 2026. They are discovery
+evidence, not permanent guarantees, and must be reproduced before implementation
+decisions rely on them.
+
+- The host is an arm64 Mac Studio running macOS 26.5.2 and Xcode 26.2. Both the
+  `iphoneos` and `iphonesimulator` SDKs are installed.
+- The repository pins Mojo `1.1.0.dev2026082105`. The independently installed
+  compiler used for the smoke tests was Mojo `1.0.0b1`; therefore every probe
+  below must be repeated with the repository-pinned or locally built compiler.
+- Mojo already emits a valid arm64 Mach-O object for the iOS Simulator with an
+  `LC_BUILD_VERSION` platform of `IOSSIMULATOR`:
+
+  ```sh
+  mojo build \
+    --target-triple arm64-apple-ios17.0-simulator \
+    --target-cpu apple-m1 \
+    --emit object \
+    source.mojo \
+    -o source.o
+  ```
+
+- A runtime-free Mojo function exported with `@export` and a C ABI can already
+  be linked into an iOS Simulator dynamic library with Xcode's `clang` and
+  ad-hoc signed. This validates the basic code generation and C-linkage path;
+  the planned deliverable remains a static library.
+- A normal `mojo build` executable fails because the driver invokes a macOS
+  linker configuration and selects the macOS-only
+  `libKGENCompilerRTShared.dylib`.
+- Cross-compiling filesystem standard-library tests fails because
+  `CompilationTarget.is_macos()` is false for iOS. This leaves shared Darwin
+  facilities, including `__error` and Darwin errno values, unselected.
+- SDK inspection confirms that important errno and open-flag constants match
+  between macOS and iOS. The implementation must nevertheless validate C
+  structures, layouts, symbol availability, and API availability rather than
+  treating all iOS APIs as macOS APIs.
+- The current compiler/build seams also warrant explicit attention: same-arch
+  cross-OS compilation can inherit host CPU features; host-derived linker and
+  file-extension choices leak into target builds; standard-library target
+  queries distinguish Linux and macOS but not iOS; and current Apple GPU target
+  paths contain macOS-specific AIR assumptions.
+- CoreSimulator access was blocked by the discovery tool sandbox. The first
+  implementation session must verify an installed iOS 17-or-newer Simulator
+  runtime:
+
+  ```sh
+  xcrun simctl list runtimes
+  ```
+
+Temporary smoke tests are encouraged during discovery. They need not be checked
+in unless they become stable regression tests, samples, or build-system fixtures.
+
+## Support Contract
+
+The initial supported configurations are:
+
+| Dimension | Initial contract |
+| --- | --- |
+| Host | Apple Silicon Mac with Xcode and matching Apple SDKs |
+| Simulator | `arm64-apple-ios17.0-simulator`, baseline CPU `apple-m1` |
+| Device | `arm64-apple-ios17.0`, portable baseline CPU `apple-a7` |
+| App lifecycle | SwiftUI/Swift |
+| Mojo artifact | AOT static library with a C ABI |
+| Packaging | XCFramework plus local Swift Package wrapper |
+| Initial execution | CPU, SIMD, and threading |
+| Later execution | Precompiled Mojo-generated Metal kernels |
+| Deployment baseline | iOS/iPadOS 17, configurable upward |
+
+iOS is cross-compilation even when both host and target are arm64. Toolchain
+logic must compare architecture, operating system, and target environment.
+Device-specific CPUs such as `apple-a17` may be used for controlled benchmark
+builds, but never as the baseline for generally distributed binaries.
+
+## Phased Implementation Roadmap
+
+### Phase 0 — Freeze the Support Contract
+
+1. Repeat object-emission, linker, exported-symbol, and standard-library probes
+   with the repository-pinned or locally built compiler.
+2. Confirm the installed Simulator runtimes with `xcrun simctl list runtimes`
+   and select an iOS 17-or-newer arm64 runtime.
+3. Add a living support matrix covering Simulator and device targets, CPU
+   architecture and defaults, runtime availability, standard-library modules,
+   Swift integration, packaging, and Metal.
+4. Establish the canonical triples and baseline CPUs:
+
+   - Simulator: `arm64-apple-ios17.0-simulator`, CPU `apple-m1`.
+   - Device: `arm64-apple-ios17.0`, CPU `apple-a7`, matching Apple clang's
+     conservative device default.
+
+5. Define cross-compilation using architecture, OS, and environment rather than
+   architecture alone.
+6. Reserve device-specific CPU selection for benchmark or application-local
+   builds with an explicitly documented deployment set.
+7. Open an upstream design discussion before broad compiler changes because the
+   work crosses compiler, runtime, standard-library, and build-system
+   boundaries.
+
+For each probe, use a source file containing the two C ABI exports from Phase 1
+and record the tool output alongside the compiler version:
+
+```sh
+mojo build \
+  --target-triple arm64-apple-ios17.0-simulator \
+  --target-cpu apple-m1 \
+  --emit object source.mojo -o source-simulator.o
+file source-simulator.o
+xcrun vtool -show-build source-simulator.o
+nm -gU source-simulator.o
+
+mojo build \
+  --target-triple arm64-apple-ios17.0 \
+  --target-cpu apple-a7 \
+  --emit object source.mojo -o source-device.o
+file source-device.o
+xcrun vtool -show-build source-device.o
+nm -gU source-device.o
+```
+
+The expected invariants are `Mach-O 64-bit object arm64` from `file`, an
+`LC_BUILD_VERSION` platform of `IOSSIMULATOR` with minimum OS 17.0 for the first
+object and `IOS` with minimum OS 17.0 for the second from `vtool`, and the two
+unmangled C symbols (shown with the platform underscore by `nm`) corresponding
+to `mojo_add` and `mojo_hello_utf8`. The exact SDK/build-tool version strings
+may vary and should be recorded, not hard-coded into compatibility tests.
+
+**Exit gate:** The pinned compiler produces valid `IOS` and `IOSSIMULATOR`
+objects. Checked-in discovery documentation or tests record exact commands and
+expected `file`, `vtool`, and `nm` properties: arm64 Mach-O object format, the
+correct platform load command and minimum OS, and the expected C symbols.
+
+### Phase 1 — First Simulator Win Without the Mojo Runtime
+
+1. Add a tiny Mojo module with two runtime-free C ABI exports:
+
+   - `mojo_add(Int64, Int64) -> Int64`.
+   - `mojo_hello_utf8(output, capacity) -> required_length`, using a
+     caller-owned byte buffer and no heap allocation.
+
+2. Add a handwritten C header for these first exports. Do not depend on the
+   currently internal and unstable header generator.
+3. Add a minimal SwiftUI host whose `Text` view displays the Mojo UTF-8 message
+   and a calculation performed in Mojo.
+4. Use `rules_apple` and `rules_swift` for the canonical repository sample. The
+   app target should use an equivalent of:
+
+   ```starlark
+   ios_application(
+       families = ["iphone", "ipad"],
+       minimum_os_version = "17.0",
+       # ...
+   )
+   ```
+
+   These rules support building, signing, installing, and running Simulator
+   applications from Bazel. See the
+   [rules_apple iOS tutorial](https://github.com/bazelbuild/rules_apple/blob/main/doc/tutorials/ios-app.md).
+5. Introduce a focused `mojo_ios_static_library` rule or macro. It should invoke
+   the host Mojo compiler, emit the requested target object, archive it, and
+   return C-linkable metadata to the Swift target. It must not create a second
+   compiler pipeline.
+6. Keep SwiftUI as the application entry point, consistent with Apple's
+   [SwiftUI app organization](https://developer.apple.com/documentation/swiftui/app-organization).
+7. Keep exploratory shell scripts and generated Xcode fixtures untracked unless
+   they become reproducible parts of the sample or test suite.
+
+**Exit gate:** One documented repository command builds, installs, and launches
+the SwiftUI app in an arm64 iPhone Simulator. XCTest verifies both C exports,
+and a UI test verifies that the app displays “Hello from Mojo on iOS.”
+
+### Phase 2 — First-Class Apple Target and Build Plumbing
+
+1. Add explicit Apple platform classification in the Mojo driver. macOS, iOS
+   device, and iOS Simulator must not collapse into a generic Darwin or host
+   check.
+2. Correct same-architecture cross-compilation detection and introduce
+   target-aware CPU defaults so an iOS build never inherits the Mac Studio's
+   M-series features accidentally.
+3. Generalize the existing macOS sysroot repository into Apple SDK repositories
+   resolved through `xcrun` for `macosx`, `iphoneos`, and `iphonesimulator`.
+4. Extend the Mojo Bazel toolchain so the Apple target configuration supplies
+   the target triple, SDK, and minimum deployment version.
+5. Make output extensions, linker selection, diagnostics, debug tooling, and
+   post-link behavior derive from the target rather than the compiler host.
+6. Keep `--emit object` as the first stable iOS compiler contract. For
+   unsupported iOS `--emit exe` or `--emit shared-lib` combinations, produce an
+   actionable diagnostic directing users to static-library and Xcode/Bazel
+   integration.
+7. Add `--emit static-lib` only after object emission is stable. Implement it as
+   a thin archive-producing layer over the same object pipeline.
+
+**Exit gate:** Cross-target tests verify triple classification, CPU defaults,
+cross-compilation state, Mach-O platform load commands, relocations, exported
+symbols, and target-aware diagnostics. Existing macOS and Linux behavior remains
+unchanged.
+
+### Phase 3 — Static iOS CompilerRT and Core Standard Library
+
+1. Split or parameterize `KGENCompilerRT` so iOS receives a statically linkable,
+   application-safe runtime instead of `libKGENCompilerRTShared.dylib`.
+2. Limit the initial runtime to what library code needs: globals, allocation,
+   error support, core system queries, and AsyncRT/thread-pool support.
+3. Exclude Python loading, compiler and JIT facilities, Crashpad, Tracy or plugin
+   loading, dynamic profiling loaders, and globally installed fault handlers.
+4. Require exported Mojo entry points that allocate, launch parallel work, or
+   use async facilities to call `std.runtime.initialize_runtime()`. Preserve its
+   idempotent, process-lifetime behavior.
+5. Extend the standard-library target API with:
+
+   - `CompilationTarget.is_ios()`.
+   - `CompilationTarget.is_ios_simulator()`.
+   - `CompilationTarget.is_darwin()` for shared macOS/iOS ABI behavior.
+   - `platform_map(..., ios=..., darwin=...)`, with exact-platform values taking
+     precedence over Darwin defaults.
+
+6. Refactor genuinely shared layouts and constants from `_macos` into Darwin
+   implementations. Validate C structure sizes, alignments, offsets, exported
+   symbols, and availability against both macOS and iOS SDKs.
+7. Classify standard-library modules and encode unsupported behavior as clear
+   compile-time diagnostics:
+
+   - **Supported:** builtins, math, SIMD, collections, memory, formatting,
+     clocks, libc output, sandbox-compatible files, and errno.
+   - **Supported with restrictions:** environment access, filesystem paths,
+     dynamic loading of bundled code, and system queries.
+   - **Unavailable initially:** subprocess and process spawning, Python,
+     REPL/JIT features, and APIs incompatible with the iOS sandbox.
+
+**Exit gate:** Simulator tests cover output, allocation and deallocation,
+strings, errors, sandboxed files, two runtime-initialization calls, parallel
+execution, and clean process exit without unresolved runtime symbols.
+
+### Phase 4 — Physical Device and Reusable Packaging
+
+1. Build the same SwiftUI sample for `arm64-apple-ios17.0` and run it on a
+   development-signed iPhone or iPad.
+2. Keep signing identities, team IDs, device identifiers, and provisioning
+   profiles outside tracked defaults.
+3. Produce separate static archives for device and Simulator. Never combine
+   device and Simulator variants with `lipo`.
+4. Combine each Mojo library variant with exactly one compatible static
+   CompilerRT to avoid runtime deployment, duplicate-runtime, and install-name
+   issues.
+5. Package both variants, public headers, and a Clang module map:
+
+   ```sh
+   xcodebuild -create-xcframework \
+     -library <device-library> -headers <headers> \
+     -library <simulator-library> -headers <headers> \
+     -output MojoLibrary.xcframework
+   ```
+
+6. Add a local Swift Package binary target and a small Swift wrapper that maps
+   safe Swift values to the C ABI.
+7. Keep the ABI deliberately C-shaped: scalar/POD arguments, caller-owned
+   buffers, opaque handles with explicit destroy functions, C callbacks, and
+   integer error codes. Never expose Mojo-owned strings, collections,
+   exceptions, or native Mojo layouts directly to Swift.
+8. Validate the package from a clean consumer app. Apple requires distinct
+   platform variants and recommends XCFrameworks for libraries produced by
+   alternate build systems. See
+   [Apple XCFramework guidance](https://developer.apple.com/documentation/xcode/creating-a-multi-platform-binary-framework-bundle).
+
+**Exit gate:** The same package works unmodified in an iPhone Simulator and on
+a physical iPhone or iPad. The consumer project requires neither the Mojo
+compiler nor a Modular installation.
+
+### Phase 5 — CPU, SIMD, Threading, and Swift Benchmarks
+
+1. Run correctness tests in Simulator, but prohibit Simulator measurements from
+   being used in performance claims.
+2. Add an on-device release benchmark app comparing:
+
+   - Mojo scalar code with equivalent optimized Swift.
+   - Mojo explicit SIMD and auto-vectorized loops with Swift loops.
+   - Mojo parallel CPU work with Swift structured concurrency.
+   - Both languages with Accelerate/vDSP or Metal Performance Shaders as an
+     optimized platform ceiling.
+
+3. Begin with vector transform, reduction, dot product, image convolution,
+   small and large matrix multiplication, allocation-heavy processing, and
+   parallel map/reduce.
+4. Allocate and initialize data outside timed regions. Use identical buffers
+   and algorithms, warmups, many iterations, result validation, and separate
+   measurements of C-boundary overhead.
+5. Record compiler version, optimization flags, target CPU and features,
+   device/chip, OS, workload size, thermal state, median and p95 latency,
+   throughput, peak memory, binary size, and energy observations.
+6. Inspect emitted assembly to confirm NEON/vector instructions. Use Instruments
+   and signposted regions to profile CPU occupancy and call trees; Apple's
+   [OSSignposter](https://developer.apple.com/documentation/os/ossignposter)
+   supports isolating timed work.
+7. Require Mojo to achieve at least 90% of optimized Swift throughput for
+   equivalent compute-bound implementations, or record a root-caused
+   compiler/runtime issue before calling the workload supported. Accelerate and
+   MPS results are informative ceilings, not pass/fail gates.
+
+**Exit gate:** Reproducible physical-device reports demonstrate correct SIMD
+generation, useful multicore scaling above documented workload thresholds,
+controlled runtime overhead, and no unexplained large regression against
+equivalent Swift.
+
+### Phase 6 — Apple Framework Interoperability
+
+1. Preserve the architecture boundary: SwiftUI and lifecycle code remain Swift;
+   Mojo implements reusable computation and systems code.
+2. Support Swift calling Mojo through maintained or generated C headers and
+   Clang module maps.
+3. Support Mojo calling Apple functionality in tiers:
+
+   1. Direct bindings for public C APIs such as Darwin, CoreFoundation,
+      Accelerate/BLAS, and `os` facilities.
+   2. Objective-C or Swift adapter modules exposing stable C functions for
+      UIKit, Foundation object APIs, Metal, and other non-C frameworks.
+   3. Registered C callbacks for lifecycle events, asynchronous completion, and
+      data delivery from Swift to Mojo.
+
+4. Add a Clang-based binding generator only after handwritten bindings establish
+   conventions for naming, availability, nullability, ownership, callbacks, and
+   error handling.
+5. Treat direct Swift ABI support—including declaring SwiftUI `View` or `App`,
+   Swift generics and protocols, and opaque result types in Mojo—as a separate
+   language/compiler research project, not a prerequisite for iOS support.
+6. Follow Swift's normal Clang-module import model for packaged native
+   libraries. See
+   [Swift C/C++ interoperability](https://www.swift.org/documentation/cxx-interop/).
+
+**Exit gate:** A sample SwiftUI app uses Mojo computation together with at least
+one C Apple framework and one Objective-C or Swift adapter, without unsafe
+ownership crossing the boundary.
+
+### Phase 7 — iOS Metal Compute
+
+1. Reuse the existing Mojo AIR lowering, Apple GPU standard-library primitives,
+   kernel implementations, and optimization work wherever they are
+   target-independent.
+2. Replace hard-coded `air64-apple-macosx` assumptions with platform-aware AIR
+   targets and iOS deployment-compatible Metal/AIR versions.
+3. Model iPhone and iPad GPU capabilities through Metal GPU families queried
+   from `MTLDevice`. Do not map A-series devices blindly onto the current M1–M5
+   names.
+4. Compile Mojo kernels into metallibs on the Mac during the application build
+   and bundle them as resources. Do not compile or download executable kernels
+   on the device.
+5. Add a small Objective-C++ or Swift Metal host bridge for device discovery,
+   buffer management, pipeline creation, dispatch, synchronization, and error
+   conversion.
+6. Start with vector addition and reduction, then move to progressively larger
+   kernels only after correctness and profiling infrastructure is stable.
+7. Compare Mojo-generated metallibs with equivalent handwritten Metal Shading
+   Language and MPS implementations using GPU traces, occupancy, bandwidth,
+   limiter counters, and thermal data. Apple documents
+   [GPU counter statistics](https://developer.apple.com/documentation/xcode/analyzing-apple-gpu-performance-using-counter-statistics)
+   for profiling Apple GPUs.
+
+**Exit gate:** Precompiled Mojo Metal kernels run correctly on at least one
+iPhone class and one iPad class, require no runtime shader compilation, and have
+explained performance relative to handwritten MSL and MPS.
+
+### Phase 8 — Hardening and Upstreaming
+
+1. Add macOS CI jobs for iOS object emission, static runtime linking,
+   XCFramework creation, Simulator unit tests, and the SwiftUI smoke app.
+2. Keep development-signed physical-device and performance runs as separately
+   provisioned CI or manual gates.
+3. Fuzz and ABI-test exported structures, callbacks, buffers, error paths, and
+   ownership boundaries.
+4. Document Xcode, Bazel, SwiftPM, device signing, symbolication, App Store
+   constraints, and unsupported APIs.
+5. Submit changes as reviewable stacks: target classification, build toolchain,
+   Simulator sample, static runtime, standard library, device packaging,
+   benchmarks, framework interoperability, and Metal.
+6. Keep all shipped execution AOT. This avoids relying on downloaded or
+   feature-changing executable code, which Apple restricts under App Review
+   rule 2.5.2. See the
+   [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/).
+
+**Exit gate:** The documented support matrix is continuously tested, a clean
+consumer can integrate the release artifact, unsupported features fail clearly,
+and the upstream change series is split into independently reviewable units.
+
+## Test and Acceptance Matrix
+
+Every phase must preserve earlier gates. A feature is not considered supported
+until its corresponding tests run in the intended target environment.
+
+| Area | Required coverage and acceptance criteria | First required phase |
+| --- | --- | --- |
+| Compiler | Both triples; target-aware CPU defaults; correct cross-compilation state; Mach-O platform metadata; debug information; stable C ABI symbols; actionable unsupported-link diagnostics | 0–2 |
+| Runtime | Static link; repeated initialization; globals; allocation; errors; threading; process-lifetime shutdown; dead stripping; no unresolved or duplicate runtime symbols | 3 |
+| Standard library | Compile-only coverage for every module; runtime coverage for the supported subset; explicit diagnostics for restricted or unavailable APIs | 3 |
+| Swift integration | Swift unit tests for every exported ABI; caller-owned buffer and opaque-handle tests; callback and error-path coverage | 1–6 |
+| Application integration | SwiftUI UI test; Simulator build/install/launch; physical-device launch; clean XCFramework consumer | 1 and 4 |
+| Compatibility | No macOS or Linux regression; configurable deployment target with iOS 17 as the tested baseline | Every phase |
+| CPU performance | On-device scalar, SIMD, allocation, C-boundary, and threading baselines; recorded toolchain, device, thermal, latency, throughput, memory, and energy context | 5 |
+| Metal performance | Correctness and on-device measurements against MSL/MPS only after the GPU phase; no Simulator performance claims | 7 |
+| Distribution | No JIT, Python, compiler binaries, loose dynamic libraries, private Apple APIs, user-specific signing material, or merged device/Simulator `lipo` binary | 4–8 |
+
+## Assumptions and Follow-Up Platforms
+
+- iPhone and iPad are the only initial Apple mobile families. watchOS, tvOS,
+  visionOS, and Mac Catalyst are follow-up ports after the iOS abstractions are
+  proven.
+- arm64 Simulator support is sufficient for the current Mac Studio. Add an
+  x86_64 Simulator slice only if a supported Xcode/Intel CI environment still
+  requires it.
+- A physical device and Apple development signing identity will be available by
+  Phase 4.
+- “Direct SwiftUI support” means a supported SwiftUI host calling Mojo; it does
+  not mean implementing SwiftUI's Swift protocols inside Mojo.
+- The initial deliverable is a reusable Mojo native library, not a standalone
+  Mojo-owned iOS application process.
+- macOS Metal support is a valuable implementation reference, but iOS GPU
+  capability discovery, AIR target metadata, deployment rules, resource
+  packaging, and performance validation remain explicit porting work.

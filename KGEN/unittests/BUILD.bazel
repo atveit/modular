@@ -18,6 +18,7 @@ modular_cc_test(
     deps = [
         ":test_kernels",
         "//KGEN:MojoTooling",
+        "//KGEN:TargetTraits",
     ],
 )
 

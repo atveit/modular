@@ -16,10 +16,42 @@
 #include "Support/Configuration.h"
 
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/TargetParser/Triple.h"
 
 namespace M::KGEN {
+
+ApplePlatform getApplePlatform(const llvm::Triple &triple) {
+  switch (triple.getOS()) {
+  // LLVM uses both `darwin` and `macosx` spellings for macOS triples.
+  case llvm::Triple::Darwin:
+  case llvm::Triple::MacOSX:
+    return ApplePlatform::MacOS;
+  case llvm::Triple::IOS:
+    return triple.getEnvironment() == llvm::Triple::Simulator
+               ? ApplePlatform::IOSSimulator
+               : ApplePlatform::IOSDevice;
+  default:
+    return ApplePlatform::None;
+  }
+}
+
+bool isCrossCompilation(const llvm::Triple &target,
+                        const llvm::Triple &host) {
+  // Do not use architecture alone here: arm64 macOS -> arm64 iOS is a
+  // cross-OS compilation, and the Simulator environment is distinct from a
+  // physical-device environment.
+  return target.getArch() != host.getArch() ||
+         target.getVendor() != host.getVendor() ||
+         target.getOS() != host.getOS() ||
+         target.getEnvironment() != host.getEnvironment();
+}
+
+bool isCrossCompilation(const llvm::Triple &target) {
+  return isCrossCompilation(target,
+                             llvm::Triple(llvm::sys::getDefaultTargetTriple()));
+}
 
 ErrorOrSuccess requireMaxForAccelerator(bool isMaxOnly) {
   if (!isMaxOnly)

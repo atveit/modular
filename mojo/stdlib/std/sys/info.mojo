@@ -191,6 +191,23 @@ struct CompilationTarget[value: _TargetType = _current_target()](
 
     @always_inline("nodebug")
     @staticmethod
+    def _triple() -> StaticString:
+        """Returns the canonical target triple.
+
+        KGEN currently exposes the operating system but not the triple
+        environment as a separate target field, so the Simulator predicate
+        derives its result from the canonical triple suffix.
+        """
+        var res = __mlir_attr[
+            `#kgen.param.expr<target_get_field,`,
+            Self.value,
+            `, "triple" : !kgen.string`,
+            `> : !kgen.string`,
+        ]
+        return StaticString(res)
+
+    @always_inline("nodebug")
+    @staticmethod
     def default_compile_options() -> StaticString:
         """Returns the default compile options for the compilation target.
 
@@ -500,12 +517,31 @@ struct CompilationTarget[value: _TargetType = _current_target()](
 
     @staticmethod
     def is_macos() -> Bool:
-        """Returns True if the host operating system is macOS.
+        """Returns True if the target operating system is macOS.
 
         Returns:
-            True if the host operating system is macOS and False otherwise.
+            True if the target operating system is macOS and False otherwise.
         """
         return Self._os() in ["darwin", "macosx"]
+
+    @staticmethod
+    def is_ios() -> Bool:
+        """Returns True if the target operating system is iOS or iPadOS.
+
+        Device and Simulator targets both report ``ios`` as their operating
+        system. Use :meth:`is_ios_simulator` when the environment matters.
+        """
+        return Self._os() == "ios"
+
+    @staticmethod
+    def is_ios_simulator() -> Bool:
+        """Returns True if the target is an iOS Simulator target."""
+        return Self.is_ios() and Self._triple().endswith("-simulator")
+
+    @staticmethod
+    def is_darwin() -> Bool:
+        """Returns True for macOS, iOS device, and iOS Simulator targets."""
+        return Self.is_macos() or Self.is_ios()
 
 
 def platform_map[
@@ -515,6 +551,8 @@ def platform_map[
     *,
     linux: Optional[T] = None,
     macos: Optional[T] = None,
+    ios: Optional[T] = None,
+    darwin: Optional[T] = None,
 ]() -> T:
     """Helper for defining a compile time value depending
     on the current compilation target, raising a compilation
@@ -524,7 +562,10 @@ def platform_map[
         T: The type of the platform-specific value.
         operation: Optional operation name for error messages.
         linux: The value to use on Linux platforms.
-        macos: The value to use on macOS platforms.
+        macos: The exact-platform value to use on macOS.
+        ios: The exact-platform value to use on iOS and iPadOS.
+        darwin: The fallback value for Darwin-family platforms when no exact
+            ``macos`` or ``ios`` value is provided.
 
     Returns:
         The platform-specific value for the current target.
@@ -534,12 +575,18 @@ def platform_map[
     ```mojo
     from std.sys.info import platform_map
 
-    comptime EDEADLK = platform_map["EDEADLK", linux=35, macos=11]()
+    comptime EDEADLK = platform_map[
+        "EDEADLK", linux=35, darwin=11
+    ]()
     ```
     """
 
     comptime if CompilationTarget.is_macos() and macos:
         return materialize[macos.value()]()
+    elif CompilationTarget.is_ios() and ios:
+        return materialize[ios.value()]()
+    elif CompilationTarget.is_darwin() and darwin:
+        return materialize[darwin.value()]()
     elif CompilationTarget.is_linux() and linux:
         return materialize[linux.value()]()
     else:

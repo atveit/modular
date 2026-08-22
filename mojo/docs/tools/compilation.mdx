@@ -545,6 +545,21 @@ Both print:
 sum=499500
 ```
 
+For native application toolchains that must choose the final linker and
+runtime, `--emit static-lib` writes the compiler's target object archive without
+linking the host CompilerRT:
+
+```sh
+mojo build mylib.mojo \
+  --target-triple arm64-apple-ios17.0-simulator \
+  --target-cpu apple-m1 \
+  --emit static-lib -o libmylib.a
+```
+
+This is the hand-off used by the planned iOS/Xcode integration. The consuming
+build must provide a target-compatible CompilerRT (or use runtime-free exports)
+and must perform the final Apple link and signing step.
+
 :::note Differences from a Mojo executable
 Without a Mojo `main()` function, some process-level setup that Mojo
 executables perform doesn't happen:

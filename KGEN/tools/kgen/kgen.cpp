@@ -341,7 +341,15 @@ static LogicalResult runToolPipeline(MLIRContext *ctx, llvm::SourceMgr &mgr,
   pmOptions.crashReproducerOptions.enableLocalMLIRReproducer =
       clOptions.enableLocalMLIRReproducer;
 
-  options.isCrossCompilation = !clOptions.targetAccelerator.empty();
+  // Compare the complete target identity, not just the architecture: an
+  // arm64 macOS host targeting arm64 iOS (or its Simulator environment) is a
+  // cross compilation.
+  const llvm::Triple targetTriple = clOptions.targetTriple.empty()
+                                        ? llvm::Triple(
+                                              llvm::sys::getDefaultTargetTriple())
+                                        : llvm::Triple(clOptions.targetTriple);
+  options.isCrossCompilation = isCrossCompilation(targetTriple) ||
+                               !clOptions.targetAccelerator.empty();
   if (clOptions.cmd == Command::kElaborateUseParametricInterpreter)
     options.useParametricInterpreter = true;
   else if (clOptions.cmd == Command::kElaborateNoUseParametricInterpreter)
