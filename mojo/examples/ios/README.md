@@ -460,9 +460,10 @@ normal build invokes Xcode's Simulator SDK compiler and archiver from a local,
 non-sandboxed action because this repository currently has a macOS-only Bazel
 sysroot/C++ toolchain. `//KGEN:CompilerRTIOSStatic` is an input solely to
 materialize Bazel-generated LLVM headers; the action never reads, links, or
-repackages its host archive. The checked-in shell probe is the current fresh
-Simulator compile/archive evidence; a Bazel action artifact is not claimed until
-that one-time compiler build completes in a clean environment.
+repackages its host archive. The checked-in shell probe and the Bazel action
+both now produce fresh Simulator archive evidence. The Bazel action remains a
+host-Xcode diagnostic rather than a hermetic iOS build until the SDK tools and
+Apple platform toolchain are declared as Bazel inputs.
 
 `run_compilerrt_ios_globals_link_boundary.sh` is the next, deliberately
 expected-failure Simulator diagnostic. It compiles a C consumer of
@@ -479,6 +480,21 @@ MOJO_IOS_COMPILERRT_GLOBALS_BOUNDARY_OUT="$(mktemp -d)" \
 This confirms a missing SDK-native support dependency; it does not produce or
 run an app, provide global-runtime support, or change the separate AsyncRT
 blocker.
+
+`GlobalsIOS.cpp` is a separate candidate implementation of the exported
+global-entry ABI. It uses `llvm::StringRef` headers for the exact named-call
+signature, but only libc++ `unordered_map`/`mutex`/`vector` primitives at link
+time. The opt-in Simulator fixture verifies named lookup, insertion, indexed
+lookup, destruction callbacks, and idempotent teardown:
+
+```sh
+RUN_SIMULATOR=1 MOJO_IOS_GLOBALS_IOS_CANDIDATE_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_globals_ios_candidate.sh
+```
+
+This candidate is not a replacement for desktop `Globals.cpp`: it does not
+claim the lock-free table's contention, allocation, or concurrent-destruction
+semantics, and it does not include AsyncRT.
 
 ## SwiftUI adoption seam
 
@@ -556,11 +572,14 @@ Mojo compiler should not embed provisioning profiles or signing identities.
 ### Runtime-free static-library action prototype
 
 `//mojo/examples/ios:mojo_ios_static_library_smoke` is an example-local
-prototype of that action. Its rule declares the runtime-free Mojo source and C
-header as inputs, requests `arm64-apple-ios17.0-simulator` object emission from
-the registered Mojo toolchain, invokes the Simulator SDK `libtool`, and is
-designed to validate the extracted archive member's `IOSSIMULATOR` metadata plus
-C ABI exports. It has no signing, app, or Mojo-runtime behavior.
+prototype of that action. Its rule declares the runtime-free Mojo source,
+stdlib sources, and C header as inputs, requests
+`arm64-apple-ios17.0-simulator` object emission from the registered Mojo
+toolchain, invokes the Simulator SDK `libtool`, and validates the extracted
+archive member's `IOSSIMULATOR` metadata plus the two C ABI exports. It has no
+signing, app, or Mojo-runtime behavior. The current action is explicitly local
+and non-sandboxed because `xcrun` discovers the host Xcode SDK tools at
+execution time.
 
 The toolchain supplies the compiler and its transitive runfiles as declared
 action tools. Therefore `--config=prebuilt-mojo` can use a declared prebuilt
@@ -578,7 +597,7 @@ hermetic Bazel iOS build.
 
 For now, `//mojo/examples/ios:ios_simulator_smoke_fixture` is intentionally a
 source `filegroup`; it is not yet an `ios_application` or a runnable Bazel
-test. That limitation is recorded by the scrutiny reports and is the D3
-automation task. The direct scripts remain the low-level evidence path until a
-`mojo_ios_static_library` action can reproduce the same `file`/`vtool`/`nm`
-checks inside Bazel.
+test. That limitation is recorded by the scrutiny reports and remains the D3
+automation task. The runtime-free archive action now reproduces the low-level
+`ar`/`vtool`/`nm` checks inside Bazel, while the direct scripts remain useful
+for device slices, runtime probes, and clean evidence capture.

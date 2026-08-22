@@ -293,13 +293,22 @@ temporary control using `rules_apple` 4.5.3 plus `rules_swift` 3.5.0 analyzes
 and builds a minimal Simulator `.ipa`, but that pair raises the root protobuf
 floor and has not been adopted. No root Apple-rule dependency or toolchain
 change has been made, and no canonical app build is claimed.
-The runtime-free Bazel action seam now analyzes under the prebuilt Mojo
-configuration through the registered `@rules_mojo` toolchain, without a direct
-compiler-binary visibility exception. A separate KGEN source filegroup exposes
-only the four SDK-bootstrap CompilerRT sources. The action's fresh archive
-execution remains a manual/toolchain gate because Xcode SDK tools are not yet
-declared Bazel inputs; the checked-in shell probe is still the artifact evidence
-until a clean hermetic Bazel action run is captured.
+The runtime-free Bazel action seam now analyzes and executes under the prebuilt
+Mojo configuration through the registered `@rules_mojo` toolchain, without a
+direct compiler-binary visibility exception. It carries the pinned stdlib
+sources into the action, emits an `arm64-apple-ios17.0-simulator` object, makes
+an archive with the Simulator SDK `libtool`, and checks the extracted member's
+`IOSSIMULATOR`/minOS 17 metadata plus `_mojo_add` and `_mojo_hello_utf8`. A
+separate KGEN source filegroup exposes only the four SDK-bootstrap CompilerRT
+sources. The action is deliberately local/non-sandboxed and discovers Xcode
+SDK tools through `xcrun`; therefore this is a real Bazel archive artifact but
+not yet a hermetic Bazel iOS toolchain or app build.
+The expected-failure `Globals.cpp` link boundary is complemented by a separate
+`GlobalsIOS.cpp` candidate: its named/indexed lookup, insertion, destruction,
+and idempotent teardown pass a C++ Simulator consumer and an opt-in Simulator
+launch marker. It remains an experimental implementation, is not wired into
+`CompilerRTIOSStatic`, and makes no lock-free, concurrent-destruction, or
+AsyncRT claim.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both

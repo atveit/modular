@@ -949,6 +949,9 @@ modular_shared_library(
     ], exclude = [
         # The iOS-only libc allocator must not enter the desktop shared DSO.
         "lib/CompilerRT/MemoryIOS.cpp",
+        # The experimental iOS global-table candidate is not part of the
+        # desktop shared runtime; it is compiled only by its SDK fixture.
+        "lib/CompilerRT/GlobalsIOS.cpp",
     ]),
     hdrs = glob([
         "include/KGEN/CompilerRT/*.h",
