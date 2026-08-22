@@ -67,6 +67,23 @@ checked-in harness has passed that Simulator gate. See
 [`uikit_adapter/README.md`](uikit_adapter/README.md) for the ownership and
 runtime limits.
 
+## os/signpost direct-C adapter
+
+`os_signpost_adapter/run_os_signpost_smoke.sh` compiles a fixed-name public
+`os/signpost.h` event adapter and links its scalar C-ABI Swift consumer with
+the iOS SDK system library for both device and Simulator SDK slices. It checks
+exports, the signpost import, `libSystem` linkage, and `IOS`/`IOSSIMULATOR`
+metadata without invoking
+the Mojo runtime, launching an app, collecting signposts, or claiming device
+execution.
+
+```sh
+mojo/examples/ios/os_signpost_adapter/run_os_signpost_smoke.sh
+```
+
+See [`os_signpost_adapter/README.md`](os_signpost_adapter/README.md) for the
+strict no-ownership boundary and profiling limitations.
+
 ## Metal AIR toolchain probe
 
 `run_metal_air_toolchain_probe.sh` compiles a checked-in handwritten MSL kernel
@@ -405,7 +422,12 @@ import this checkout's `std.runtime` package; use the repository-built binary
 for this probe. The fixture still does not link or execute it. These symbols
 are implemented today by the desktop AsyncRT CPU-device/thread-pool runtime;
 the manifest is evidence for a future explicit iOS runtime slice, not evidence
-that that runtime is iOS-safe.
+that that runtime is iOS-safe. A follow-up direct SDK compile with the
+repository LLVM source/generated headers reaches incompatible target-configured
+LLVM/MLIR dependencies (`file_status::getSize`, `EnvPathSeparator`, and
+`mlir/Support/LLVM.h`), while source inspection confirms the default thread
+pool and TCMalloc/RuntimeGlobals graph. No AsyncRT subset is wired until those
+target-configured inputs and an extracted iOS shim API are designed.
 
 ## SIMD assembly probe
 

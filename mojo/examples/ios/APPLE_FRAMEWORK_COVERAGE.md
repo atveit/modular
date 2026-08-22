@@ -34,7 +34,7 @@ appropriate tier.
 | CoreFoundation | Direct C | Simulator runtime marker passes | `corefoundation_adapter/run_corefoundation_smoke.sh`: CFString create/inspect/release through a scalar C ABI; device execution remains a separate gate |
 | CoreGraphics | Direct C | Simulator runtime marker passes | `coregraphics_adapter/run_coregraphics_smoke.sh`: scalar rectangle-area C ABI; resource ownership stays in C; device execution remains separate |
 | Accelerate, vDSP, BLAS, BNNS | Direct C | Simulator runtime marker passes | `accelerate_adapter/run_accelerate_smoke.sh`: vDSP vector add through a stable C header; device correctness and benchmarks remain |
-| `os`, signposts | Direct C / callback | Planned | signposted regions and structured diagnostic output |
+| `os`, signposts | Direct C / callback | Compile/link fixture for `iphoneos` + `iphonesimulator` | `os_signpost_adapter/run_os_signpost_smoke.sh`: fixed-name public os/signpost event behind a scalar status C ABI; signpost collection and runtime profiling remain untested |
 | Foundation | Adapter | Simulator runtime marker passes | `foundation_adapter/run_foundation_smoke.sh`: Objective-C-owned NSString/NSURL behind scalar C ABI; device execution remains a separate gate |
 | UIKit | Adapter | Simulator runtime marker passes | `uikit_adapter/run_uikit_smoke.sh`: Objective-C-owned `UIScreen` queried through scalar C ABI; device execution remains a separate gate |
 | SwiftUI | Adapter | Compile-only host exists | SwiftUI owns `App`/`View`; Mojo supplies computation and model data through C |

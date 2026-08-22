@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only direct-C os/signpost fixture. The shell harness uses the Xcode
+# SDK tools because Apple Bazel rules are not registered in the root module.
+filegroup(
+    name = "os_signpost_adapter_fixture",
+    srcs = [
+        "MojoIOSOSSignpost.modulemap",
+        "OSSignpostConsumer.swift",
+        "README.md",
+        "mojo_ios_os_signpost.c",
+        "mojo_ios_os_signpost.h",
+        "run_os_signpost_smoke.sh",
+    ],
+)
+
+exports_files([
+    "MojoIOSOSSignpost.modulemap",
+    "OSSignpostConsumer.swift",
+    "README.md",
+    "mojo_ios_os_signpost.c",
+    "mojo_ios_os_signpost.h",
+    "run_os_signpost_smoke.sh",
+])

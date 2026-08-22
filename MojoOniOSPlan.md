@@ -231,7 +231,10 @@ execution, device coverage, or a benchmark gate. A CoreFoundation CFString
 adapter now has matching device/Simulator compile-link checks and an opt-in
 Simulator ownership marker. CoreGraphics and Foundation now have matching
 device/Simulator adapter checks plus opt-in Simulator result markers; these are
-framework-boundary evidence, not Mojo-runtime or device support. D9 has a
+framework-boundary evidence, not Mojo-runtime or device support.
+The public `os/signpost.h` surface now has a dual-SDK direct-C fixture that
+links a fixed-name event adapter and verifies the `libSystem` signpost symbol;
+collection/profiling and Mojo-runtime claims remain open. D9 has a
 matching artifact-only Core ML framework adapter fixture for both device and
 Simulator SDKs; it does not load a model
 or claim ANE use. D12
@@ -274,6 +277,14 @@ semantics, link, or execute AsyncRT. A separate D7 assembly probe now emits
 the runtime-free four-lane SIMD fixture for both iOS triples and observes
 `fmla.4s` NEON instructions; this is instruction evidence only, not a
 correctness, runtime, or performance result.
+The follow-up direct Simulator compile of `AsyncRT.cpp`, even with the
+repository LLVM source/generated headers, reaches incompatible target-configured
+LLVM/MLIR dependencies (`file_status::getSize`, `EnvPathSeparator`, and
+`mlir/Support/LLVM.h`). Source inspection also confirms that preserving
+`initialize_runtime()` semantics retains the default thread pool and
+TCMalloc/RuntimeGlobals graph. No AsyncRT subset is therefore wired into the
+iOS runtime until a target-configured LLVM/MLIR toolchain and an intentionally
+extracted shim API exist.
 D11 now has an artifact-only XCFramework, a
 generated local Swift Package metadata and iOS Simulator build, and a separate
 Swift consumer compile/link check for the runtime-free C ABI, covering `ios-arm64` and

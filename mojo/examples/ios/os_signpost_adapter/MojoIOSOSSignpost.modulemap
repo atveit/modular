@@ -1,0 +1,4 @@
+module MojoIOSOSSignpost [system] {
+  header "mojo_ios_os_signpost.h"
+  export *
+}

@@ -56,6 +56,7 @@ filegroup(
         "//mojo/examples/ios/coregraphics_adapter:coregraphics_adapter_fixture",
         "//mojo/examples/ios/corefoundation_adapter:corefoundation_adapter_fixture",
         "//mojo/examples/ios/foundation_adapter:foundation_adapter_fixture",
+        "//mojo/examples/ios/os_signpost_adapter:os_signpost_adapter_fixture",
         "//mojo/examples/ios/uikit_adapter:uikit_adapter_fixture",
     ],
 )
