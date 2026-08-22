@@ -179,15 +179,22 @@ From the repository root:
 mojo/examples/ios/run_simulator_smoke.sh
 ```
 
-The harness uses the repository's available `MOJO_BIN` (or `mojo` on `PATH`),
-emits an `arm64-apple-ios17.0-simulator` object with `apple-m1`, archives it,
+The harness prefers the repository-built pinned driver at
+`bazel-bin/KGEN/tools/mojo/mojo-full` when it exists; otherwise it uses
+`mojo` on `PATH`. With the pinned driver it automatically supplies this
+checkout's `mojo/stdlib`, avoiding accidental probes with an older independent
+installation. Build the pinned driver first when needed:
+
+```sh
+./bazelw build --config=build-mojo //KGEN:mojo
+```
+
+It emits an `arm64-apple-ios17.0-simulator` object with `apple-m1`, archives it,
 compiles a C consumer using the Xcode `iphonesimulator` SDK, links an arm64
 Simulator executable, ad-hoc signs it, and verifies the Mach-O symbols and
-load-command metadata. Set `MOJO_BIN=/path/to/mojo` to repeat the probe with a
-repository-pinned or locally built compiler. A compiler that requires the
-checkout's stdlib can additionally set
-`MOJO_STDLIB_PATH="$PWD/mojo/stdlib"`. Set `MOJO_IOS_SMOKE_OUT` to retain
-outputs elsewhere.
+load-command metadata. Set `MOJO_BIN=/path/to/mojo` to select another compiler;
+set `MOJO_STDLIB_PATH="$PWD/mojo/stdlib"` when it requires the checkout's
+stdlib. Set `MOJO_IOS_SMOKE_OUT` to retain outputs elsewhere.
 
 Set `MOJO_IOS_SKIP_SIGNING=1` for archive/link-only consumers such as the
 XCFramework packaging harness. It omits app packaging as well, and cannot be

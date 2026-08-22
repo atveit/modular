@@ -12,8 +12,23 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
-mojo_bin="${MOJO_BIN:-mojo}"
-mojo_stdlib_path="${MOJO_STDLIB_PATH:-}"
+if [[ -n "${MOJO_BIN:-}" ]]; then
+  mojo_bin="${MOJO_BIN}"
+elif [[ -x "${repo_root}/bazel-bin/KGEN/tools/mojo/mojo-full" ]]; then
+  # Prefer the repository-pinned driver when it has already been built. The
+  # independently installed Mojo on PATH may be older than this checkout's
+  # source syntax and can produce misleading probe failures.
+  mojo_bin="${repo_root}/bazel-bin/KGEN/tools/mojo/mojo-full"
+else
+  mojo_bin="mojo"
+fi
+if [[ -n "${MOJO_STDLIB_PATH:-}" ]]; then
+  mojo_stdlib_path="${MOJO_STDLIB_PATH}"
+elif [[ "${mojo_bin}" == "${repo_root}/bazel-bin/KGEN/tools/mojo/mojo-full" ]]; then
+  mojo_stdlib_path="${repo_root}/mojo/stdlib"
+else
+  mojo_stdlib_path=""
+fi
 target_triple="${MOJO_IOS_TRIPLE:-${MOJO_IOS_SIMULATOR_TRIPLE:-arm64-apple-ios17.0-simulator}}"
 target_cpu="${MOJO_IOS_CPU:-}"
 
