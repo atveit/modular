@@ -101,7 +101,7 @@ def mojo_add(lhs: Int64, rhs: Int64) abi("C") -> Int64:
 
 @export("mojo_hello_utf8")
 def mojo_hello_utf8(
-    output: UnsafePointer[UInt8, MutAnyOrigin], capacity: Int64
+    output: Pointer[UInt8, MutAnyOrigin], capacity: Int64
 ) abi("C") -> Int64:
     comptime message_length = 23
     if capacity <= 0:
