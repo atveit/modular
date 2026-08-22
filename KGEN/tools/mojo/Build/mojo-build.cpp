@@ -501,9 +501,9 @@ createOutputFile(const State &state, const llvm::opt::InputArgList &args,
   return outFile;
 }
 
-/// Given a module representing a Mojo program, compile the program to a static
-/// archive. Returns an unsuccessful exit code if the archive could not be
-/// created successfully, and nullopt otherwise.
+/// Given a module representing a Mojo program, compile it to one linked target
+/// object buffer. Returns an unsuccessful exit code if code generation could
+/// not complete, and nullopt otherwise.
 static std::optional<int>
 compileModuleToArchive(const State &state, AsyncRT::CPUDevice &cpuDevice,
                        MLIRContext &context, const CompilationOptions &options,
@@ -759,15 +759,39 @@ static int linkOutput(OutputType outputType, const State &state,
 
   // A static library is the target-neutral hand-off from Mojo to a native
   // Apple/Bazel/Xcode toolchain. Do not pull in the host CompilerRT or invoke
-  // the host linker here: the archive must remain a target object archive and
-  // the consumer is responsible for selecting a compatible runtime.
+  // the host linker here: the archive must contain the target object and the
+  // consumer is responsible for selecting a compatible runtime.
   if (outputType == OutputType::staticLibrary) {
-    if (llvm::Error err = llvm::writeToOutput(outputName, [&](raw_ostream &os) {
-          os << archive->getBuffer();
-          return llvm::Error::success();
-        })) {
-      return state.reportError("unable to write static library: " +
-                               llvm::toString(std::move(err)));
+    // ObjectCompiler::emitArchive is historical terminology: its buffer is a
+    // single target object, not an `ar` archive. Wrap it in a real archive so
+    // native consumers can pass the .a to clang/ld and inspect it with `ar -t`.
+    auto objectFileOr =
+        writeTempFile("mojo_staticlib-%%%%%%%.o", archive->getBuffer());
+    if (objectFileOr.isError())
+      return state.reportError("unable to write static-library object: " +
+                               Twine(objectFileOr.getError()));
+    TempFile objectFile = std::move(*objectFileOr);
+
+    std::optional<std::string> archiver;
+    if (auto llvmAr = llvm::sys::findProgramByName("llvm-ar"))
+      archiver = std::move(*llvmAr);
+    else if (auto systemAr = llvm::sys::findProgramByName("ar"))
+      archiver = std::move(*systemAr);
+    if (!archiver)
+      return state.reportError(
+          "unable to create static library: neither llvm-ar nor ar was found");
+
+    std::string objectPath = objectFile.getPath().string();
+    SmallVector<StringRef> archiverArgs = {*archiver, "rcs", outputName,
+                                           objectPath};
+    std::string errorMsg;
+    int archiveExitCode = llvm::sys::ExecuteAndWait(
+        *archiver, archiverArgs, /*Env=*/std::nullopt, /*Redirects=*/{},
+        /*SecondsToWait=*/0, /*MemoryLimit=*/0, /*ErrMsg=*/&errorMsg);
+    if (archiveExitCode) {
+      if (!errorMsg.empty())
+        errorMsg.insert(0, ": ");
+      return state.reportError("failed to create static library" + errorMsg);
     }
     return EXIT_SUCCESS;
   }

@@ -20,6 +20,7 @@ filegroup(
         "swiftui_host/MojoIOSSmokeApp.swift",
         "swiftui_host/README.md",
         "swiftui_host/compile_swiftui_host.sh",
+        "swiftui_host/link_swiftui_host.sh",
     ],
 )
 

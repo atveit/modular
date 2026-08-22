@@ -1,5 +1,8 @@
 # Runtime-free Mojo iOS Simulator fixture
 
+For a complete copy-and-run walkthrough, see
+[MojoOnIOSimulatorTutorial.md](../../../MojoOnIOSimulatorTutorial.md).
+
 This directory is the first executable slice of the Mojo-on-iOS plan. It
 contains two `@export` functions with a handwritten C header:
 
@@ -29,7 +32,9 @@ emits an `arm64-apple-ios17.0-simulator` object with `apple-m1`, archives it,
 compiles a C consumer using the Xcode `iphonesimulator` SDK, links an arm64
 Simulator executable, ad-hoc signs it, and verifies the Mach-O symbols and
 load-command metadata. Set `MOJO_BIN=/path/to/mojo` to repeat the probe with a
-repository-pinned or locally built compiler. Set `MOJO_IOS_SMOKE_OUT` to retain
+repository-pinned or locally built compiler. A compiler that requires the
+checkout's stdlib can additionally set
+`MOJO_STDLIB_PATH="$PWD/mojo/stdlib"`. Set `MOJO_IOS_SMOKE_OUT` to retain
 outputs elsewhere.
 
 To request a launch when CoreSimulator is available:

@@ -41,3 +41,26 @@ It emits an arm64 Simulator Swift object and module, but does not link or sign
 an application. The Mojo archive and `rules_apple`/Xcode application link
 action remain intentionally deferred until the repository has an Apple Swift
 toolchain integration.
+
+To test the real link seam after building the runtime-free archive:
+
+```sh
+MOJO_IOS_SMOKE_OUT=/tmp/mojo-ios-smoke \
+  mojo/examples/ios/run_simulator_smoke.sh
+MOJO_IOS_ARCHIVE=/tmp/mojo-ios-smoke/libmojo_ios_smoke.a \
+  mojo/examples/ios/swiftui_host/link_swiftui_host.sh
+```
+
+Add `RUN_SIMULATOR=1` to the link command to boot an available iPhone
+Simulator, install the signed app, and request its launch. Set
+`SIMULATOR_UDID` when a specific device is required.
+
+The link probe emits a SwiftUI arm64 Simulator executable, verifies its
+`IOSSIMULATOR` load command and Mojo symbols, and packages a minimal ad-hoc
+signed `.app`. It does not claim Simulator launch success, and it does not
+provide XCTest coverage. In environments where Swift emits a benign
+`using sysroot for 'MacOSX' but targeting 'iPhone'` warning, `vtool` remains the
+source of truth for the final platform metadata. The controlled probe showed
+that `swiftc -sdk <iphonesimulator SDK>` alone still emitted that warning; the
+link script therefore sets `SDKROOT` to the same SDK explicitly. This removed
+the warning while preserving the `IOSSIMULATOR` load command.

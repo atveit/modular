@@ -12,6 +12,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 mojo_bin="${MOJO_BIN:-mojo}"
+mojo_stdlib_path="${MOJO_STDLIB_PATH:-}"
 target_triple="${MOJO_IOS_SIMULATOR_TRIPLE:-arm64-apple-ios17.0-simulator}"
 target_cpu="${MOJO_IOS_SIMULATOR_CPU:-apple-m1}"
 sdk_name="iphonesimulator"
@@ -41,13 +42,22 @@ app_path="${output_root}/mojo_ios_smoke.app"
 log "compiler: ${mojo_bin}"
 log "target: ${target_triple} (${target_cpu})"
 log "SDK: ${sdk_path}"
+if [[ -n "${mojo_stdlib_path}" ]]; then
+  log "stdlib: ${mojo_stdlib_path}"
+fi
 log "emitting target object"
-"${mojo_bin}" build \
-  --target-triple "${target_triple}" \
-  --target-cpu "${target_cpu}" \
-  --emit object \
-  "${script_dir}/mojo_ios_smoke.mojo" \
+mojo_build_args=(
+  build
+  --target-triple "${target_triple}"
+  --target-cpu "${target_cpu}"
+  --emit object
+  "${script_dir}/mojo_ios_smoke.mojo"
   -o "${object_path}"
+)
+if [[ -n "${mojo_stdlib_path}" ]]; then
+  mojo_build_args=("${mojo_build_args[@]:0:1}" -I "${mojo_stdlib_path}" "${mojo_build_args[@]:1}")
+fi
+"${mojo_bin}" "${mojo_build_args[@]}"
 
 log "archiving object"
 rm -f "${archive_path}"

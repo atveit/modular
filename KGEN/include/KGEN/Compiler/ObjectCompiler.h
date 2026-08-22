@@ -57,8 +57,11 @@ public:
          MLIRContext &context,
          PassManagerConfigOptions pmOptions = PassManagerConfigOptions());
 
-  /// Emit the module to a object archive. If outKeyHash is provided, it will
-  /// be populated with the hash of the key used to cache the module.
+  /// Emit the module to one linked target object buffer. If outKeyHash is
+  /// provided, it will be populated with the hash of the key used to cache
+  /// the module. Callers that need a static library must wrap this object in
+  /// an archive container (for example with `ar`); this method does not emit
+  /// an `ar` archive despite the historical `emitArchive` name.
   ErrorOr<BufferRef> emitArchive(OwningOpRef<ModuleOp> module,
                                  bool emitAssembly = false,
                                  std::string *outKeyHash = nullptr);

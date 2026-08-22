@@ -12,6 +12,7 @@ filegroup(
         "MojoIOSSmoke.modulemap",
         "README.md",
         "compile_swiftui_host.sh",
+        "link_swiftui_host.sh",
     ],
 )
 
@@ -20,4 +21,5 @@ exports_files([
     "MojoIOSSmokeApp.swift",
     "README.md",
     "compile_swiftui_host.sh",
+    "link_swiftui_host.sh",
 ])

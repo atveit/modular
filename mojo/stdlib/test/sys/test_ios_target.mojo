@@ -19,6 +19,7 @@
 # RUN: %bare-mojo build --target-triple=arm64-apple-ios17.0 --target-cpu=apple-a7 --emit=llvm %s -o /dev/null
 
 from std.sys import CompilationTarget, is_defined
+from std.sys._libc_errno import ErrNo
 from std.sys.info import platform_map
 
 
@@ -31,11 +32,20 @@ comptime _darwin_map = platform_map[
     darwin=4,
 ]()
 
+comptime _darwin_fallback = platform_map[
+    T=Int,
+    "test Darwin fallback",
+    darwin=4,
+]()
+
 
 def main() raises:
     comptime assert CompilationTarget.is_ios()
     comptime assert CompilationTarget.is_darwin()
     comptime assert _darwin_map == 3
+    comptime assert _darwin_fallback == 4
+    comptime assert ErrNo.EAGAIN.value == 35
+    comptime assert ErrNo.ENOTSUP.value == 45
 
     comptime if is_defined["EXPECT_SIMULATOR"]():
         comptime assert CompilationTarget.is_ios_simulator()
