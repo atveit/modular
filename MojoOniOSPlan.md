@@ -67,6 +67,13 @@ decisions rely on them.
 - The repository pins Mojo `1.1.0.dev2026082105`. The independently installed
   compiler used for the smoke tests was Mojo `1.0.0b1`; therefore every probe
   below must be repeated with the repository-pinned or locally built compiler.
+- A repository-built driver can now be produced with
+  `./bazelw build --config=build-mojo //KGEN:mojo`. Using
+  `bazel-bin/KGEN/tools/mojo/mojo-full` with `-I mojo/stdlib` reproduces the
+  arm64 Simulator object, archive, link, ad-hoc signing, install, and launch
+  chain. Its provenance was recorded as `Mojo 1.1.0.dev0 (deadbeef)` by the
+  locally built binary; the source checkout's pinned version remains the
+  authoritative version to report in CI.
 - Mojo already emits a valid arm64 Mach-O object for the iOS Simulator with an
   `LC_BUILD_VERSION` platform of `IOSSIMULATOR`:
 
@@ -215,6 +222,11 @@ D9–D13 remain planned and must not be described as shipped support. The D3
 artifact chain is proven, but its original exit gate—one
 rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet
 met because this checkout still uses source fixtures and shell probes.
+The repository-built driver is now available at
+`bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
+runtime-free object/archive/link/launch Simulator chain. It still rejects both
+candidate `air64-apple-ios17.0` triples as unknown targets, so that is a
+confirmed compiler gap rather than an installed-compiler provenance issue.
 
 ### Scrutiny-adjusted next steps
 
