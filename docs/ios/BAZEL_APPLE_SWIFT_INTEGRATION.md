@@ -62,14 +62,14 @@ are macOS Mach-O, not iOS slices.
 ## Present blockers and next action
 
 The direct-repository queries fail because the aliases are absent, despite the
-transitive modules being resolved. In addition, `bazel mod all_paths
-rules_apple` currently reports that `MODULE.bazel`'s `link_hack` repo rule
-cannot load `//bazel/internal:link_hack.bzl`; that file is absent in this
-checkout. This makes module-extension/toolchain evaluation incomplete and is a
-separate blocker to enabling the Apple rules.
+transitive modules being resolved. The repository-rule mismatch that previously
+blocked `bazel mod all_paths` has been repaired by restoring
+`bazel/internal/link_hack.bzl` from the historical contract expected by
+`MODULE.bazel`; `bazel mod all_paths rules_apple` and `rules_swift` now
+complete. This fixes module evaluation only; it does not make the Apple rule
+repositories visible from the main repository.
 
-Next action: have the Bazel dependency/toolchain owner first resolve the
-missing `link_hack` repository-rule discrepancy, then trial the candidate pair
+Next action: have the Bazel dependency/toolchain owner trial the candidate pair
 in an isolated branch, inspect `bazel mod graph` and registered toolchains, and
 build a compile-only Simulator Swift library before declaring an application or
 claiming XCTest/UI/runtime support.

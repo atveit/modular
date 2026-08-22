@@ -430,19 +430,20 @@ at option parsing and is intentionally not used by this probe.
 
 ## SDK-native CompilerRT bootstrap archive
 
-`run_compilerrt_ios_bootstrap_archive_probe.sh` compiles `MemoryIOS.cpp` and
-`Initialize.cpp` directly with the iPhoneSimulator and iPhoneOS SDK toolchains,
-then verifies every object is target-correct before archiving:
+`run_compilerrt_ios_bootstrap_archive_probe.sh` compiles `MemoryIOS.cpp`,
+`Initialize.cpp`, `Support.cpp`, and `Globals.cpp` directly with the
+iPhoneSimulator and iPhoneOS SDK toolchains, then verifies every archived
+object is target-correct:
 
 ```sh
 mojo/examples/ios/run_compilerrt_ios_bootstrap_archive_probe.sh
 ```
 
-It deliberately excludes `Support.cpp` and `Globals.cpp`: direct SDK compiles
-currently stop at repository LLVM headers, so the helper never repackages host
-objects. The resulting bootstrap archive is allocation/initializer metadata
-evidence only, not a full CompilerRT, globals, AsyncRT, link, or execution
-claim.
+The helper discovers Bazel's LLVM source and generated-header roots, passing
+them only as headers to Xcode clang++; it never repackages host objects or links
+Bazel LLVM libraries. The resulting archive is core allocation/initializer/
+globals/bfloat-helper object evidence only, not AsyncRT, a completed runtime,
+link, or execution support.
 
 ## SwiftUI adoption seam
 

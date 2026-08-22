@@ -8,6 +8,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 output_root="${MOJO_IOS_COMPILERRT_BOOTSTRAP_OUT:-${repo_root}/bazel-out/ios-compilerrt-bootstrap-probe}"
+bazel_wrapper="${repo_root}/bazelw"
 
 log() {
   printf '[ios-compilerrt-bootstrap-probe] %s\n' "$*"
@@ -21,14 +22,23 @@ fail() {
 command -v xcrun >/dev/null 2>&1 || fail "xcrun is required"
 command -v ar >/dev/null 2>&1 || fail "ar is required"
 command -v vtool >/dev/null 2>&1 || fail "vtool is required"
+[[ -x "${bazel_wrapper}" ]] || fail "bazelw is required to locate generated LLVM headers"
 mkdir -p "${output_root}"
 
-# Support.cpp and Globals.cpp are intentionally excluded. Direct SDK compilation
-# currently stops at repository LLVM headers (llvm/ADT/StringRef.h and
-# llvm/ADT/DenseMapInfo.h respectively); do not replace them with host objects.
+exec_root="$("${bazel_wrapper}" info --config=build-mojo execution_root)"
+bazel_bin="$("${bazel_wrapper}" info --config=build-mojo bazel-bin)"
+llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"
+llvm_generated_include="${bazel_bin}/external/+llvm_configure+llvm-project/llvm/include"
+[[ -d "${llvm_source_include}" ]] || fail "missing Bazel LLVM source headers: ${llvm_source_include}"
+[[ -d "${llvm_generated_include}" ]] || fail "missing generated LLVM headers: ${llvm_generated_include}; run ./bazelw build --config=build-mojo //KGEN:CompilerRTIOSStatic first"
+
+# These are header-only build inputs from Bazel. All archive members below are
+# freshly compiled by the selected iOS SDK clang++, never copied from Bazel.
 sources=(
   "${repo_root}/KGEN/lib/CompilerRT/MemoryIOS.cpp"
   "${repo_root}/KGEN/lib/CompilerRT/Initialize.cpp"
+  "${repo_root}/KGEN/lib/CompilerRT/Support.cpp"
+  "${repo_root}/KGEN/lib/CompilerRT/Globals.cpp"
 )
 
 build_one() {
@@ -51,6 +61,8 @@ build_one() {
     "${clangxx_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
       "${minimum_os_flag}" -arch arm64 -std=c++20 \
       -DMODULAR_BUILDING_COMPILERRT -I"${repo_root}/Support/include" \
+      -isystem "${llvm_source_include}" \
+      -isystem "${llvm_generated_include}" \
       -c "${source_path}" -o "${object_path}"
     build_metadata="$(vtool -show-build "${object_path}")"
     printf '%s\n' "${build_metadata}" | sed -n '1,40p'
@@ -73,7 +85,10 @@ build_one() {
   for expected_symbol in \
     _KGEN_CompilerRT_AlignedAlloc \
     _KGEN_CompilerRT_AlignedFree \
-    _KGEN_CompilerRT_Initialize; do
+    _KGEN_CompilerRT_Initialize \
+    _KGEN_CompilerRT_GetOrCreateGlobal \
+    _KGEN_CompilerRT_DestroyGlobals \
+    ___truncsfbf2; do
     nm -gU "${archive_path}" | grep -qx ".*${expected_symbol}" || \
       fail "missing ${expected_symbol}: ${archive_path}"
   done
@@ -84,4 +99,4 @@ build_one "arm64-apple-ios17.0-simulator" "iphonesimulator" \
   "-mios-simulator-version-min=17.0" "IOSSIMULATOR"
 build_one "arm64-apple-ios17.0" "iphoneos" \
   "-miphoneos-version-min=17.0" "IOS"
-log "Bootstrap archive evidence only; no Globals/Support/AsyncRT, link, signing, or execution claim."
+log "Core archive evidence only; no AsyncRT, link, signing, or execution claim."
