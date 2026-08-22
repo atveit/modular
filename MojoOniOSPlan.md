@@ -351,28 +351,42 @@ equivalent Swift.
    Mojo implements reusable computation and systems code.
 2. Support Swift calling Mojo through maintained or generated C headers and
    Clang module maps.
-3. Support Mojo calling Apple functionality in tiers:
+3. Treat “Apple libraries available in Mojo” as an API-coverage objective for
+   the public iOS/iPadOS SDK, not as a promise to reproduce every Swift ABI
+   detail. Maintain an inventory per Xcode SDK of framework, minimum OS,
+   availability annotations, ownership model, and binding status. A framework
+   is supported when its documented public APIs are callable from Mojo through
+   one of the following stable tiers:
 
    1. Direct bindings for public C APIs such as Darwin, CoreFoundation,
       Accelerate/BLAS, and `os` facilities.
    2. Objective-C or Swift adapter modules exposing stable C functions for
-      UIKit, Foundation object APIs, Metal, and other non-C frameworks.
+      Foundation and UIKit object APIs, SwiftUI view/model adapters, Metal,
+      AVFoundation, Core ML, and other non-C frameworks.
    3. Registered C callbacks for lifecycle events, asynchronous completion, and
       data delivery from Swift to Mojo.
 
-4. Add a Clang-based binding generator only after handwritten bindings establish
+4. Prioritize the first public framework coverage wave as Foundation,
+   CoreFoundation, CoreGraphics, UIKit, SwiftUI, Metal, Accelerate/vDSP/BNNS,
+   `os`/signposts, AVFoundation, and Core ML. Add later frameworks through the
+   same inventory and adapter conventions rather than creating framework-specific
+   ABI exceptions.
+5. Add a Clang-based binding generator only after handwritten bindings establish
    conventions for naming, availability, nullability, ownership, callbacks, and
    error handling.
-5. Treat direct Swift ABI support—including declaring SwiftUI `View` or `App`,
+6. Treat direct Swift ABI support—including declaring SwiftUI `View` or `App`,
    Swift generics and protocols, and opaque result types in Mojo—as a separate
    language/compiler research project, not a prerequisite for iOS support.
-6. Follow Swift's normal Clang-module import model for packaged native
+7. Follow Swift's normal Clang-module import model for packaged native
    libraries. See
    [Swift C/C++ interoperability](https://www.swift.org/documentation/cxx-interop/).
 
-**Exit gate:** A sample SwiftUI app uses Mojo computation together with at least
-one C Apple framework and one Objective-C or Swift adapter, without unsafe
-ownership crossing the boundary.
+**Exit gate:** A sample app uses Mojo computation together with at least one C
+Apple framework and one Objective-C or Swift adapter, without unsafe ownership
+crossing the boundary. The framework inventory identifies which public APIs are
+covered directly, covered through adapters, compile-only, or still unavailable;
+“all Swift libraries” is measured by that inventory rather than by an unsafe
+direct Swift ABI claim.
 
 ### Phase 7 — iOS Metal Compute
 

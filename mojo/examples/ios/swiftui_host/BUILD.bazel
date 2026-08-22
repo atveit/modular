@@ -1,0 +1,23 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only adoption fixture. The repository currently has no rules_apple or
+# rules_swift registration, so this is deliberately a filegroup rather than an
+# ios_application target. Once those rules are registered, the same sources
+# belong in a rules_apple ios_application with families=["iphone", "ipad"] and
+# minimum_os_version="17.0".
+filegroup(
+    name = "swiftui_host_fixture",
+    srcs = [
+        "MojoIOSSmokeApp.swift",
+        "MojoIOSSmoke.modulemap",
+        "README.md",
+        "compile_swiftui_host.sh",
+    ],
+)
+
+exports_files([
+    "MojoIOSSmoke.modulemap",
+    "MojoIOSSmokeApp.swift",
+    "README.md",
+    "compile_swiftui_host.sh",
+])

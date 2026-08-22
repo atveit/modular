@@ -9,11 +9,17 @@ filegroup(
     name = "ios_simulator_smoke_fixture",
     srcs = [
         "Info.plist",
+        "APPLE_FRAMEWORK_COVERAGE.md",
         "README.md",
         "mojo_ios_smoke.h",
         "mojo_ios_smoke.mojo",
         "run_simulator_smoke.sh",
         "smoke_main.c",
+        "swiftui_host/BUILD.bazel",
+        "swiftui_host/MojoIOSSmoke.modulemap",
+        "swiftui_host/MojoIOSSmokeApp.swift",
+        "swiftui_host/README.md",
+        "swiftui_host/compile_swiftui_host.sh",
     ],
 )
 

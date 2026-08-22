@@ -8,8 +8,8 @@ contains two `@export` functions with a handwritten C header:
 
 The fixture also contains minimal app-bundle metadata so the static smoke
 executable can be installed with `simctl` when an iOS Simulator service is
-available. It is not a SwiftUI app; the SwiftUI host is the next integration
-step.
+available. The runtime-free executable is not itself a SwiftUI app; the
+adjacent `swiftui_host/` fixture is the source-level SwiftUI adoption seam.
 
 The Mojo module imports no stdlib module, allocates no memory, and does not
 initialize the Mojo runtime. It is therefore suitable for validating the
@@ -42,6 +42,20 @@ If CoreSimulator is inaccessible or no iPhone runtime/device is installed, the
 script reports a `SKIP` after completing the static checks. This is expected in
 sandboxed discovery environments; it is not evidence that an iOS app launch
 has passed.
+
+## SwiftUI adoption seam
+
+`swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,
+and compile-only probe for the arm64 Simulator. Run
+`swiftui_host/compile_swiftui_host.sh` to verify that SwiftUI can import the
+handwritten C declarations and emit an iOS object. It deliberately stops before
+linking because this checkout does not register `rules_apple`/`rules_swift` and
+does not yet expose a runtime-backed `mojo_ios_static_library` provider.
+
+`APPLE_FRAMEWORK_COVERAGE.md` is the crawl-walk-run inventory for making public
+iOS/iPadOS APIs available to Mojo. It records which APIs are direct C bindings,
+adapter-backed, compile-only, or not yet available; it does not imply that Mojo
+must implement the Swift ABI or declare SwiftUI protocols directly.
 
 ## Bazel adoption point
 

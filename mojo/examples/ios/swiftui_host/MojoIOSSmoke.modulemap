@@ -1,0 +1,4 @@
+module MojoIOSSmoke {
+  header "../mojo_ios_smoke.h"
+  export *
+}
