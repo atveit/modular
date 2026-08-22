@@ -26,10 +26,12 @@ macOS dynamic runtime into an iOS app.
 - That target produces `KGENCompilerRTShared`, which is the wrong deployment
   shape for an iOS app: it is a host runtime DSO with install-name, loader,
   and dependency assumptions that do not belong in the initial static package.
-- The repository's `std.runtime.initialize_runtime()` path calls AsyncRT
-  CPUDevice symbols. An exported function that only writes a caller-owned
-  buffer or performs a small allocation must not implicitly initialize the
-  complete AsyncRT process runtime.
+- The repository-built compiler can now compile the public
+  `std.runtime.initialize_runtime()` import for the iOS Simulator. Its object
+  manifest calls the three AsyncRT CPUDevice symbols plus the global-table
+  helper. An exported function that only writes a caller-owned buffer or
+  performs a small allocation must not implicitly initialize the complete
+  AsyncRT process runtime.
 - `KGEN/BUILD.bazel` now contains the explicit `//KGEN:CompilerRTIOSStatic`
   source-list seed. Its `MemoryIOS.cpp` member is libc-only and is compiled
   against the iPhoneSimulator SDK by the link diagnostic; the Bazel archive
@@ -73,6 +75,27 @@ compiler. Its String object referenced a different runtime ABI, including
 allocator/free, globals, argv/stack-trace/printing, AsyncRT, and libc symbols.
 Those names are useful as a diagnostic warning, not as the implementation
 contract for this checkout.
+
+### Public runtime initialization dependency refinement
+
+The repository-pinned public import was emitted for
+`arm64-apple-ios17.0-simulator` and inspected with `nm -u`. The current symbol
+surface is:
+
+| Symbol family | Current implementation seam | iOS implication |
+|---|---|---|
+| `GetCurrentCPUDevice`, `ReleaseCPUDevice` | `AsyncRT` CPUDevice/CPUDeviceRef | Requires target-safe CPUDevice ownership and teardown |
+| `GetOrCreateCPUDevice` | `AsyncRT` HostSystem/CPUDevice | `withMainWillNotDonate()` retains the default worker queue |
+| `GetOrCreateGlobal` | CompilerRT global table | Must validate locking, lifetime, and dead stripping |
+
+The `GetOrCreateCPUDevice` path also selects the default thread-pool queue and
+legacy TCMalloc allocator options. It therefore reaches ThreadPoolWorkQueue,
+RuntimeGlobals, TCMalloc, and related AsyncRT support rather than a small
+single-thread `malloc` shim. A direct SDK compile of the AsyncRT shim currently
+stops first on a missing repository LLVM header (`llvm/ADT/DenseSet.h`), before
+its iOS API suitability can be assessed. This is a dependency/toolchain
+boundary finding—not evidence that AsyncRT is iOS-safe—and is why the current
+static target still excludes AsyncRT.
 
 Reproduce a manifest with the compiler under test:
 
