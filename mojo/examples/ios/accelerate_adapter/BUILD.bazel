@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only direct-C framework fixture. The harness uses xcrun/swiftc/clang
+# because rules_apple/rules_swift are not registered in this checkout yet.
+filegroup(
+    name = "accelerate_adapter_fixture",
+    srcs = [
+        "MojoIOSAccelerate.modulemap",
+        "README.md",
+        "AccelerateConsumer.swift",
+        "mojo_ios_accelerate.c",
+        "mojo_ios_accelerate.h",
+        "run_accelerate_smoke.sh",
+    ],
+)
+
+exports_files([
+    "AccelerateConsumer.swift",
+    "MojoIOSAccelerate.modulemap",
+    "README.md",
+    "mojo_ios_accelerate.c",
+    "mojo_ios_accelerate.h",
+    "run_accelerate_smoke.sh",
+])

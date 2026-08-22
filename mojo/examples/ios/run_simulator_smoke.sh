@@ -4,8 +4,9 @@
 # This is a discovery harness for Phase 1. It intentionally does not pretend
 # to be an ios_application rule: rules_apple/rules_swift are not registered in
 # this repository yet, and the full Mojo runtime cannot currently be linked for
-# an iOS target. The resulting executable is a genuine arm64 Simulator Mach-O
-# image and can be launched when CoreSimulator is available.
+# an iOS target. By default this emits a genuine arm64 Simulator Mach-O image;
+# set `MOJO_IOS_TRIPLE=arm64-apple-ios17.0` to run the device-link variant,
+# which stops before signing or installation.
 
 set -euo pipefail
 
@@ -13,10 +14,41 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 mojo_bin="${MOJO_BIN:-mojo}"
 mojo_stdlib_path="${MOJO_STDLIB_PATH:-}"
-target_triple="${MOJO_IOS_SIMULATOR_TRIPLE:-arm64-apple-ios17.0-simulator}"
-target_cpu="${MOJO_IOS_SIMULATOR_CPU:-apple-m1}"
-sdk_name="iphonesimulator"
-output_root="${MOJO_IOS_SMOKE_OUT:-${repo_root}/bazel-out/ios-mojo-smoke}"
+target_triple="${MOJO_IOS_TRIPLE:-${MOJO_IOS_SIMULATOR_TRIPLE:-arm64-apple-ios17.0-simulator}}"
+target_cpu="${MOJO_IOS_CPU:-}"
+
+case "${target_triple}" in
+  *-simulator)
+    platform="simulator"
+    sdk_name="iphonesimulator"
+    minimum_os_flag="-mios-simulator-version-min=17.0"
+    expected_platform="IOSSIMULATOR"
+    default_cpu="apple-m1"
+    if [[ -z "${target_cpu}" ]]; then
+      target_cpu="${MOJO_IOS_SIMULATOR_CPU:-${default_cpu}}"
+    fi
+    default_output_root="${repo_root}/bazel-out/ios-mojo-smoke"
+    executable_basename="mojo_ios_smoke_simulator"
+    ;;
+  *-ios*)
+    platform="device"
+    sdk_name="iphoneos"
+    minimum_os_flag="-miphoneos-version-min=17.0"
+    expected_platform="IOS"
+    default_cpu="apple-a7"
+    if [[ -z "${target_cpu}" ]]; then
+      target_cpu="${default_cpu}"
+    fi
+    default_output_root="${repo_root}/bazel-out/ios-mojo-smoke-device"
+    executable_basename="mojo_ios_smoke_device"
+    ;;
+  *)
+    printf '[ios-mojo-smoke] ERROR: MOJO_IOS_TRIPLE must be an iOS device or Simulator triple: %s\n' "${target_triple}" >&2
+    exit 1
+    ;;
+esac
+
+output_root="${MOJO_IOS_SMOKE_OUT:-${default_output_root}}"
 
 log() {
   printf '[ios-mojo-smoke] %s\n' "$*"
@@ -36,7 +68,7 @@ sdk_path="$(xcrun --sdk "${sdk_name}" --show-sdk-path)"
 mkdir -p "${output_root}"
 object_path="${output_root}/mojo_ios_smoke.o"
 archive_path="${output_root}/libmojo_ios_smoke.a"
-executable_path="${output_root}/mojo_ios_smoke_simulator"
+executable_path="${output_root}/${executable_basename}"
 app_path="${output_root}/mojo_ios_smoke.app"
 
 log "compiler: ${mojo_bin}"
@@ -66,44 +98,61 @@ ar -rcs "${archive_path}" "${object_path}"
 log "compiling C ABI consumer"
 "$(xcrun --sdk "${sdk_name}" --find clang)" \
   -isysroot "${sdk_path}" \
-  -mios-simulator-version-min=17.0 \
+  "${minimum_os_flag}" \
   -arch arm64 \
   -I"${script_dir}" \
   -c "${script_dir}/smoke_main.c" \
   -o "${output_root}/smoke_main.o"
 
-log "linking Simulator executable"
+log "linking ${platform} executable"
+clang_args=(
+  -isysroot "${sdk_path}"
+  "${minimum_os_flag}"
+  -arch arm64
+)
 "$(xcrun --sdk "${sdk_name}" --find clang)" \
-  -isysroot "${sdk_path}" \
-  -mios-simulator-version-min=17.0 \
-  -arch arm64 \
+  "${clang_args[@]}" \
   "${output_root}/smoke_main.o" \
   "${archive_path}" \
   -o "${executable_path}"
 
-log "ad-hoc signing"
-codesign --force --sign - "${executable_path}" >/dev/null
+if [[ "${platform}" == "simulator" ]]; then
+  log "ad-hoc signing"
+  codesign --force --sign - "${executable_path}" >/dev/null
 
-log "packaging minimal Simulator app bundle"
-rm -rf "${app_path}"
-mkdir -p "${app_path}"
-cp "${script_dir}/Info.plist" "${app_path}/Info.plist"
-cp "${executable_path}" "${app_path}/mojo_ios_smoke"
-codesign --force --sign - "${app_path}" >/dev/null
+  log "packaging minimal Simulator app bundle"
+  rm -rf "${app_path}"
+  mkdir -p "${app_path}"
+  cp "${script_dir}/Info.plist" "${app_path}/Info.plist"
+  cp "${executable_path}" "${app_path}/mojo_ios_smoke"
+  codesign --force --sign - "${app_path}" >/dev/null
+fi
 
 log "verifying Mach-O architecture, symbols, and platform metadata"
-file "${object_path}" "${archive_path}" "${executable_path}" "${app_path}/mojo_ios_smoke"
+artifacts=("${object_path}" "${archive_path}" "${executable_path}")
+if [[ "${platform}" == "simulator" ]]; then
+  artifacts+=("${app_path}/mojo_ios_smoke")
+fi
+file "${artifacts[@]}"
 nm -gU "${object_path}" | grep -E '(_?mojo_add|_?mojo_hello_utf8)$'
+ar -t "${archive_path}" | grep -q 'mojo_ios_smoke.o'
 if command -v vtool >/dev/null 2>&1; then
   for artifact in "${object_path}" "${executable_path}"; do
-    vtool -show-build "${artifact}" | sed -n '1,100p'
+    build_metadata="$(vtool -show-build "${artifact}")"
+    printf '%s\n' "${build_metadata}" | sed -n '1,100p'
+    printf '%s\n' "${build_metadata}" | grep -q "platform ${expected_platform}"
   done
 else
   log "vtool is unavailable; use xcrun vtool -show-build manually"
 fi
 
+if [[ "${platform}" != "simulator" ]]; then
+  log "PASS: device object/archive/link smoke test complete (signing/install intentionally skipped)"
+  exit 0
+fi
+
 if [[ "${RUN_SIMULATOR:-0}" != 1 ]]; then
-  log "PASS: object/archive/link smoke test complete (set RUN_SIMULATOR=1 to install and launch)"
+  log "PASS: Simulator object/archive/link smoke test complete (set RUN_SIMULATOR=1 to install and launch)"
   exit 0
 fi
 

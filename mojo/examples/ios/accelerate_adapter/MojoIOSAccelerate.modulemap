@@ -1,0 +1,4 @@
+module MojoIOSAccelerate {
+  header "mojo_ios_accelerate.h"
+  export *
+}

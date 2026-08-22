@@ -684,7 +684,8 @@ static int linkOutput(OutputType outputType, const State &state,
   // Get the file base name, e.g. `foo` in `foo.mojo`.
   StringRef inputBaseName = inputName.rsplit('.').first;
 
-  std::string defaultOutputName = [outputType, inputBaseName, binaryExt] {
+  std::string defaultOutputName = [outputType, inputBaseName, binaryExt,
+                                   libExt] {
     switch (outputType) {
     case OutputType::executable:
       return (inputBaseName + binaryExt).str();

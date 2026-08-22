@@ -33,7 +33,7 @@ appropriate tier.
 | Darwin / libc | Direct C | In progress | errno, file descriptors, clocks, memory and thread primitives that are available in the app sandbox |
 | CoreFoundation | Direct C | Planned | retain/release-safe opaque references and basic strings/data |
 | CoreGraphics | Direct C | Planned | scalar geometry and image metadata; no ownership crossing without an explicit rule |
-| Accelerate, vDSP, BLAS, BNNS | Direct C | Planned | vector add, reduction, dot product, and one matrix primitive |
+| Accelerate, vDSP, BLAS, BNNS | Direct C | Compile/link prototype passes | `accelerate_adapter/run_accelerate_smoke.sh`: vDSP vector add through a stable C header; runtime/device benchmarks remain |
 | `os`, signposts | Direct C / callback | Planned | signposted regions and structured diagnostic output |
 | Foundation | Adapter | Planned | data, URL/path, date, and error adapters with explicit ownership |
 | UIKit | Adapter | Planned | screen/device metadata and a host-owned view/controller seam |

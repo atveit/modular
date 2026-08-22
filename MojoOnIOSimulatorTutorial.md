@@ -201,6 +201,26 @@ The IOSSIMULATOR load command is essential. The host is also arm64, but this
 is still cross-compilation because the target OS and environment differ from
 macOS.
 
+The same runtime-free source can be checked against the physical-device
+triple without signing or installing a device app:
+
+~~~sh
+MOJO_CRASHPAD=0 \
+MODULAR_CACHE_DIR="$IOS_OUT/device-cache" \
+MOJO_BIN="$MOJO_BIN" \
+MOJO_STDLIB_PATH="$MOJO_STDLIB_PATH" \
+MOJO_IOS_TRIPLE=arm64-apple-ios17.0 \
+MOJO_IOS_SMOKE_OUT="$IOS_OUT/device" \
+  mojo/examples/ios/run_simulator_smoke.sh
+
+vtool -show-build "$IOS_OUT/device/mojo_ios_smoke.o"
+vtool -show-build "$IOS_OUT/device/mojo_ios_smoke_device"
+~~~
+
+The device probe must report platform IOS, minimum OS 17.0, arm64, the same
+two C symbols, and an ar archive. It intentionally does not sign or install:
+physical-device signing belongs to the later development-provisioning gate.
+
 ## 5. Compile the SwiftUI host
 
 The SwiftUI source is mojo/examples/ios/swiftui_host/MojoIOSSmokeApp.swift:
@@ -248,6 +268,19 @@ mojo/examples/ios/swiftui_host/compile_swiftui_host.sh
 
 The command emits an arm64 Simulator Swift object and module. The module map
 imports the handwritten header; the Mojo archive is linked next.
+
+The first non-SwiftUI Apple framework seam is a direct-C Accelerate/vDSP
+adapter. It is deliberately separate from the Mojo archive so framework
+ownership and availability can be tested independently:
+
+~~~sh
+mojo/examples/ios/accelerate_adapter/run_accelerate_smoke.sh
+~~~
+
+That probe compiles a C adapter against Accelerate.framework, links a Swift
+consumer, checks the arm64/IOSSIMULATOR load command and exported adapter
+symbol, and confirms the framework load command with otool. It is compile/link
+coverage—not yet a runtime or physical-device support claim.
 
 ## 6. Link, sign, install, and launch SwiftUI
 
@@ -453,6 +486,11 @@ Apple libraries through a crawl-walk-run coverage program:
 
 Direct Swift ABI support is deliberately not required for this tutorial.
 
+The current checked-in Accelerate fixture is the first D8 prototype. It still
+needs Simulator execution, device execution, benchmark comparisons, and Mojo
+runtime integration before Accelerate can be promoted to a supported package
+product.
+
 ### A.6 What remains before production iOS support
 
 The next implementation gates are a pinned-compiler regression suite, static iOS
@@ -559,6 +597,30 @@ The final screenshot must visibly contain Hello from Mojo on iOS. and
 20 + 22 = 42. This is the last tracer-bullet check: SwiftUI executed the C ABI
 calls whose definitions can be traced back to the Mojo source, rather than
 displaying an unrelated static sample.
+
+### B.8 Direct-C Apple framework tracer bullet
+
+The Accelerate prototype follows a second value through the framework boundary:
+
+~~~text
+Swift arrays -> C header -> C adapter -> vDSP_vadd
+-> Accelerate.framework-linked arm64 iOS image -> checked output buffer
+~~~
+
+Validate each representation independently:
+
+~~~sh
+sed -n '1,160p' mojo/examples/ios/accelerate_adapter/mojo_ios_accelerate.h
+sed -n '1,160p' mojo/examples/ios/accelerate_adapter/mojo_ios_accelerate.c
+MOJO_IOS_ACCELERATE_OUT="$IOS_OUT/accelerate" \
+  mojo/examples/ios/accelerate_adapter/run_accelerate_smoke.sh
+otool -L "$IOS_OUT/accelerate/accelerate_consumer" | \
+  grep -F 'Accelerate.framework/Accelerate'
+~~~
+
+The adapter's C contract is POD/buffer/status-code only. This proves a public
+Apple framework can enter the package through a controlled adapter tier; it
+does not claim that Mojo directly implements Swift or Objective-C ABI types.
 
 ## Keeping code and tutorial synchronized
 

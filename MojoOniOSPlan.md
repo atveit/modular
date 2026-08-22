@@ -14,7 +14,17 @@ The initial application model is deliberately narrow: SwiftUI owns the app
 lifecycle, while Mojo is ahead-of-time compiled on macOS into a static native
 library and exposed to Swift through a stable C ABI. Device and Simulator
 variants are packaged as an XCFramework and consumed through a local Swift
-Package wrapper.
+Package wrapper. SwiftUI is the first host and validation app, not the
+boundary of iOS support.
+
+The full-package goal is broader than one SwiftUI sample: a released package
+must provide a documented, testable surface for the public iOS/iPadOS SDK. C
+frameworks are imported directly where safe; Swift and Objective-C frameworks
+are exposed through maintained adapter modules and callbacks. “Full” means
+that every public framework in the supported SDK inventory has an explicit
+status—direct, adapter-backed, compile-only, or unavailable—with availability,
+ownership, sandbox, and test evidence. It does not promise that Mojo declares
+SwiftUI protocols or reproduces the Swift ABI directly.
 
 The roadmap locks in these decisions:
 
@@ -26,11 +36,15 @@ The roadmap locks in these decisions:
 - Mojo supplies reusable computation and systems code through an AOT-compiled
   static library and C ABI.
 - Distribution uses separate device and Simulator variants in an XCFramework,
-  wrapped by a local Swift Package.
+  wrapped by a local Swift Package. The package also owns the public Apple SDK
+  adapter modules and framework-coverage manifest; SwiftUI is only its first
+  end-to-end consumer.
 - Initial scope is the Mojo language, core standard library, CPU/SIMD,
   threading, and native-library integration.
 - Later scope includes Apple SDK bindings and Mojo-generated Metal compute
   kernels.
+- Full package support is measured against the public iOS/iPadOS SDK inventory,
+  not against SwiftUI alone.
 - On-device Mojo JIT, REPL, or compiler support, Python interoperability,
   direct Swift ABI support, direct SwiftUI declarations from Mojo, and the full
   MAX runtime are initially out of scope.
@@ -107,6 +121,8 @@ The initial supported configurations are:
 | App lifecycle | SwiftUI/Swift |
 | Mojo artifact | AOT static library with a C ABI |
 | Packaging | XCFramework plus local Swift Package wrapper |
+| Package API surface | Public iOS/iPadOS SDK inventory with direct C, adapter, callback, compile-only, and unavailable statuses |
+| Apple framework ownership | C ABI and adapter-owned handles; no Mojo-owned Swift/Objective-C object layouts |
 | Initial execution | CPU, SIMD, and threading |
 | Later execution | Precompiled Mojo-generated Metal kernels |
 | Deployment baseline | iOS/iPadOS 17, configurable upward |
@@ -115,6 +131,51 @@ iOS is cross-compilation even when both host and target are arm64. Toolchain
 logic must compare architecture, operating system, and target environment.
 Device-specific CPUs such as `apple-a17` may be used for controlled benchmark
 builds, but never as the baseline for generally distributed binaries.
+
+## Staged Delivery Ladder
+
+The thematic phases below are implemented through independently reviewable
+deliveries. Each delivery has a concrete artifact, a reproducible validation
+command, and a stop/go gate. A later delivery may improve an earlier one, but
+it must not silently weaken its evidence. The ladder deliberately treats
+SwiftUI as the first vertical slice and the public Apple SDK package as the
+larger destination.
+
+| Delivery | Artifact users can inspect or consume | Minimum evidence before moving on |
+| --- | --- | --- |
+| D0 — Evidence baseline | Pinned compiler/toolchain report, SDK/runtime inventory, support matrix | Compiler version, Xcode SDK paths, both canonical triples, and reproducible `file`/`vtool`/`nm` probes |
+| D1 — Mojo object | Runtime-free Mojo source and arm64 Simulator object | `IOSSIMULATOR`, iOS 17.0, expected exported symbols, and no host-link step |
+| D2 — Native C archive | Simulator `.a`, C header, C assertion consumer | `ar -t`, symbol preservation, Apple clang link, signed app bundle, and C assertions |
+| D3 — SwiftUI Simulator slice | SwiftUI source, Clang module map, linked Simulator `.app` | Swift compile, final `nm`/`vtool`, codesign verification, `simctl install/launch`, and screenshot |
+| D4 — First-class target plumbing | Compiler target classification, CPU defaults, `--emit static-lib`, focused unit tests | iOS device and Simulator metadata, same-arch cross-compilation tests, and unchanged macOS/Linux tests |
+| D5 — Device object/archive | `arm64-apple-ios17.0` object and static archive | `IOS` load command, conservative `apple-a7` baseline, device clang link, and no accidental Simulator slice |
+| D6 — Static runtime and core stdlib | App-safe static CompilerRT plus supported stdlib subset | Allocation, errors, strings, files, repeated initialization, and threading on Simulator without unresolved runtime symbols |
+| D7 — CPU/SIMD/threading package | Reusable core library with correctness tests and device benchmark app | NEON/vector inspection, multicore correctness/scaling, C-boundary overhead, and no unexplained Swift regression |
+| D8 — Direct C SDK products | Darwin/CoreFoundation/CoreGraphics/Accelerate/`os` headers and package products | iOS 17 compile/link tests, ABI layout checks, availability metadata, and at least one runtime test per product |
+| D9 — Object-framework adapters | Foundation/UIKit/SwiftUI/AVFoundation/Core ML adapter products | Stable C handles/callbacks, ownership and teardown tests, entitlement notes, and Simulator/device behavior where required |
+| D10 — Full SDK coverage manifest | Versioned public-framework inventory and machine-readable package manifest | Every public SDK framework has direct, adapter, callback, compile-only, or unavailable status with a reason and test reference |
+| D11 — XCFramework/Swift Package | Device + Simulator XCFramework, headers/module maps, local Swift Package wrapper | Clean consumer app imports core and adapter products without Mojo/Modular installation; no `lipo` mixing |
+| D12 — Metal package | Precompiled Mojo-generated metallibs plus Swift/ObjC host bridge | iPhone and iPad correctness, no on-device shader compilation, GPU trace comparison to MSL/MPS |
+| D13 — Release and upstream stack | CI/manual gates, ABI fuzzing, docs, signed release artifacts, reviewable upstream commits | Support matrix is continuously tested; App Store constraints and all unavailable features are documented |
+
+The first three deliveries are intentionally runtime-free and can land while
+the static runtime is being designed. D8–D10 are the explicit answer to “all
+iOS libraries”: completeness is measured by the SDK manifest and package
+products, not by pretending that Mojo directly implements every Swift ABI.
+
+Every delivery should include a short evidence record in the repository or CI
+artifact containing: compiler version and path, target triple, SDK, command
+line, artifact hashes, symbol/load-command checks, test result, and known
+limitations. This makes each checkpoint independently auditable by a skeptical
+consumer.
+
+**Current checkpoint:** D0–D3 are demonstrated by the checked-in smoke and
+SwiftUI link/launch tutorial. D4 is implemented in the compiler and stdlib but
+still needs a clean focused Bazel test run. D5 now has a device object/archive/
+link probe (signing and installation remain intentionally skipped). D8 has a
+compile/link prototype for an Accelerate/vDSP adapter, but not yet its runtime
+and device gates. D6–D7 and D9–D13 remain planned and must not be described as
+shipped support.
 
 ## Phased Implementation Roadmap
 
@@ -296,7 +357,10 @@ execution, and clean process exit without unresolved runtime symbols.
    ```
 
 6. Add a local Swift Package binary target and a small Swift wrapper that maps
-   safe Swift values to the C ABI.
+   safe Swift values to the C ABI. Ship the framework-coverage manifest and
+   adapter modules as package products, so a consumer can import the same
+   public surface whether its UI is SwiftUI, UIKit, or another public Apple
+   framework.
 7. Keep the ABI deliberately C-shaped: scalar/POD arguments, caller-owned
    buffers, opaque handles with explicit destroy functions, C callbacks, and
    integer error codes. Never expose Mojo-owned strings, collections,
@@ -307,8 +371,11 @@ execution, and clean process exit without unresolved runtime symbols.
    [Apple XCFramework guidance](https://developer.apple.com/documentation/xcode/creating-a-multi-platform-binary-framework-bundle).
 
 **Exit gate:** The same package works unmodified in an iPhone Simulator and on
-a physical iPhone or iPad. The consumer project requires neither the Mojo
-compiler nor a Modular installation.
+a physical iPhone or iPad. A clean consumer can import the core Mojo product
+and at least one Apple-framework adapter product without installing the Mojo
+compiler or Modular tooling. The package includes a versioned framework
+coverage manifest; every listed public framework has a direct, adapter,
+compile-only, or unavailable status and a linked test/diagnostic.
 
 ### Phase 5 — CPU, SIMD, Threading, and Swift Benchmarks
 
@@ -366,6 +433,14 @@ equivalent Swift.
    3. Registered C callbacks for lifecycle events, asynchronous completion, and
       data delivery from Swift to Mojo.
 
+   Keep the checked-in
+   [Apple framework coverage inventory](mojo/examples/ios/APPLE_FRAMEWORK_COVERAGE.md)
+   as the source of truth for package support. Promote it into a
+   machine-readable manifest during packaging, with one package product for the
+   core Mojo ABI and separate adapter products for framework families. A
+   package release cannot silently claim “all iOS libraries”: an SDK framework
+   absent from the manifest is a release-blocking coverage gap.
+
 4. Prioritize the first public framework coverage wave as Foundation,
    CoreFoundation, CoreGraphics, UIKit, SwiftUI, Metal, Accelerate/vDSP/BNNS,
    `os`/signposts, AVFoundation, and Core ML. Add later frameworks through the
@@ -383,10 +458,44 @@ equivalent Swift.
 
 **Exit gate:** A sample app uses Mojo computation together with at least one C
 Apple framework and one Objective-C or Swift adapter, without unsafe ownership
-crossing the boundary. The framework inventory identifies which public APIs are
+crossing the boundary. A clean Swift Package consumer imports the core product
+and an adapter product. The framework inventory identifies which public APIs are
 covered directly, covered through adapters, compile-only, or still unavailable;
 “all Swift libraries” is measured by that inventory rather than by an unsafe
 direct Swift ABI claim.
+
+### Phase 6A — Full Public SDK Package Coverage
+
+This is the package-wide extension of Phase 6. SwiftUI remains the first
+vertical slice, but the deliverable is an auditable family of package products
+covering the public iOS/iPadOS SDK.
+
+1. **Crawl:** enumerate public frameworks and module headers from the selected
+   Xcode SDK; record minimum OS, availability, nullability, ownership, required
+   entitlements, and whether the framework is C, Objective-C, Swift, or mixed.
+2. **Walk:** for each framework, land the smallest safe surface in one of the
+   direct-C, adapter, callback, compile-only, or unavailable tiers. Keep each
+   adapter in its own Swift/Objective-C target and expose only stable C entry
+   points to Mojo.
+3. **Run:** compile every manifest entry for both `iphoneos` and
+   `iphonesimulator`, run Simulator correctness tests for the supported subset,
+   and run device tests for APIs whose behavior depends on hardware,
+   entitlements, sensors, cameras, or GPU families.
+4. **Package:** publish the core Mojo product, framework adapter products, C
+   headers, Clang module maps, availability metadata, and the XCFramework in a
+   local Swift Package. A consumer must be able to import only the products it
+   uses; linking an unrelated framework must not be required.
+5. **Audit:** fail packaging when a public SDK framework is missing from the
+   manifest, when an adapter lacks ownership/teardown tests, or when a
+   compile-only entry is accidentally labeled runtime-supported.
+6. **Expand:** add Foundation, CoreFoundation, CoreGraphics, Accelerate,
+   UIKit, SwiftUI, Metal, `os`, AVFoundation, and Core ML first, then add later
+   public frameworks through the same manifest and adapter rules.
+
+**Exit gate:** A clean Swift Package consumer imports the core product and at
+least two framework products from different tiers, runs on Simulator, and has
+an inventory report showing every public SDK framework as direct, adapter,
+callback, compile-only, or unavailable with a reason and test reference.
 
 ### Phase 7 — iOS Metal Compute
 

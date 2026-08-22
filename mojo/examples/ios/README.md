@@ -48,6 +48,27 @@ script reports a `SKIP` after completing the static checks. This is expected in
 sandboxed discovery environments; it is not evidence that an iOS app launch
 has passed.
 
+To validate the physical-device target without signing or installing a device
+app, use the same source with the device triple:
+
+```sh
+MOJO_IOS_TRIPLE=arm64-apple-ios17.0 \
+  mojo/examples/ios/run_simulator_smoke.sh
+```
+
+This emits an `IOS` object and device archive/executable using the portable
+`apple-a7` baseline, then stops before provisioning. The two Apple platforms
+must remain separate; do not combine their arm64 archives with `lipo`.
+
+The first direct-C framework probe is the Accelerate/vDSP adapter:
+
+```sh
+mojo/examples/ios/accelerate_adapter/run_accelerate_smoke.sh
+```
+
+It is compile/link evidence for a caller-owned-buffer C adapter, not yet a
+runtime, device, or performance claim.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,

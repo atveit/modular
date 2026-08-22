@@ -42,10 +42,10 @@ TEST(CompilationOptionsTest, ComparesCompleteTargetIdentity) {
 
 TEST(CompilationOptionsTest, UsesConservativeIOSCPUBaselines) {
   CompilationOptions simulatorOptions(
-      3, CompilationOptions::kNoDebug, std::nullopt, Sanitizers(),
+      3, CompilationOptions::kNoDebug, std::nullopt, M::Sanitizers(),
       "arm64-apple-ios17.0-simulator", "", "", "");
   CompilationOptions deviceOptions(3, CompilationOptions::kNoDebug,
-                                   std::nullopt, Sanitizers(),
+                                   std::nullopt, M::Sanitizers(),
                                    "arm64-apple-ios17.0", "", "", "");
 
   EXPECT_EQ(simulatorOptions.targetCpu, "apple-m1");

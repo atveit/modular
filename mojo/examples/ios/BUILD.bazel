@@ -21,6 +21,13 @@ filegroup(
         "swiftui_host/README.md",
         "swiftui_host/compile_swiftui_host.sh",
         "swiftui_host/link_swiftui_host.sh",
+        "accelerate_adapter/BUILD.bazel",
+        "accelerate_adapter/AccelerateConsumer.swift",
+        "accelerate_adapter/MojoIOSAccelerate.modulemap",
+        "accelerate_adapter/README.md",
+        "accelerate_adapter/mojo_ios_accelerate.c",
+        "accelerate_adapter/mojo_ios_accelerate.h",
+        "accelerate_adapter/run_accelerate_smoke.sh",
     ],
 )
 

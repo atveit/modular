@@ -21,6 +21,7 @@
 from std.sys import CompilationTarget, is_defined
 from std.sys._libc_errno import ErrNo
 from std.sys.info import platform_map
+from std.time import perf_counter_ns
 
 
 comptime _darwin_map = platform_map[
@@ -46,6 +47,10 @@ def main() raises:
     comptime assert _darwin_fallback == 4
     comptime assert ErrNo.EAGAIN.value == 35
     comptime assert ErrNo.ENOTSUP.value == 45
+
+    # On Darwin-family targets this lowers to the platform C API
+    # `clock_gettime_nsec_np`, which is available on iOS 17 and later.
+    _ = perf_counter_ns()
 
     comptime if is_defined["EXPECT_SIMULATOR"]():
         comptime assert CompilationTarget.is_ios_simulator()
