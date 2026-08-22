@@ -59,6 +59,7 @@ expected_symbols=(
   _KGEN_CompilerRT_AsyncRT_GetCurrentCPUDevice
   _KGEN_CompilerRT_AsyncRT_GetOrCreateCPUDevice
   _KGEN_CompilerRT_AsyncRT_ReleaseCPUDevice
+  _KGEN_CompilerRT_GetOrCreateGlobal
 )
 for symbol in "${expected_symbols[@]}"; do
   grep -qx "${symbol}" "${manifest_path}" || fail "missing expected runtime-init symbol: ${symbol}"

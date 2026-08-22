@@ -313,23 +313,23 @@ CompilerRT symbols before linking.
 ## Runtime initialization symbol manifest
 
 `run_runtime_initialize_symbol_manifest.sh` is a Simulator-only D7 discovery
-fixture for the native symbol names used by the checked-in
-`std.runtime.initialize_runtime()` implementation:
+fixture that compiles the checked-in public
+`std.runtime.initialize_runtime()` implementation and records its native
+dependencies:
 
 ```sh
 mojo/examples/ios/run_runtime_initialize_symbol_manifest.sh
 ```
 
-The pinned Mojo binary cannot directly import this checkout's public
-`std.runtime` package, so the fixture emits equivalent external symbol
-references rather than compiling the public API. Its `Int` pointer-width
-carriers are sufficient to observe arm64 symbol names, but do not validate the
-public `OptionalPointer` ABI signatures or call semantics. It emits an object
-and records the required CPU-device symbols
-(`GetCurrentCPUDevice`, `GetOrCreateCPUDevice`, and `ReleaseCPUDevice`) without
-linking or executing it. Those symbols are implemented today by the desktop
-AsyncRT CPU-device/thread-pool runtime; the manifest is evidence for a future
-explicit iOS runtime slice, not evidence that that runtime is iOS-safe.
+The repository-built compiler type-checks the public import and emits an object
+with the required CPU-device symbols (`GetCurrentCPUDevice`,
+`GetOrCreateCPUDevice`, and `ReleaseCPUDevice`) plus the global-table symbol
+used to retain the runtime. An independently installed Mojo 1.0.0b1 cannot
+import this checkout's `std.runtime` package; use the repository-built binary
+for this probe. The fixture still does not link or execute it. These symbols
+are implemented today by the desktop AsyncRT CPU-device/thread-pool runtime;
+the manifest is evidence for a future explicit iOS runtime slice, not evidence
+that that runtime is iOS-safe.
 
 ## SwiftUI adoption seam
 

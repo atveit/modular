@@ -236,9 +236,10 @@ metadata checker also proves that the current Bazel `CompilerRTIOSStatic`
 archive is host `MACOS` and rejects it, while the SDK-compiled allocator slice
 passes as `IOSSIMULATOR`. The remaining D7 and runtime portions of D9–D13
 remain planned and must not be described as
-shipped support. D7 now also has a pinned-compiler Simulator object manifest
-for the three CPU-device symbols emitted by `initialize_runtime()`; it does
-not link or execute AsyncRT. D11 now has an artifact-only XCFramework, a
+shipped support. D7 now also has a repository-built-compiler Simulator object
+manifest for the three CPU-device symbols plus the global-table symbol emitted
+by the public `initialize_runtime()` path; it does not link or execute AsyncRT.
+D11 now has an artifact-only XCFramework, a
 generated local Swift Package metadata and iOS Simulator build, and a separate
 Swift consumer compile/link check for the runtime-free C ABI, covering `ios-arm64` and
 `ios-arm64-simulator`; it does not load or execute a consumer app. The D3
