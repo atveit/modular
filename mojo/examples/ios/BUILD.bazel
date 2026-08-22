@@ -42,7 +42,6 @@ filegroup(
         "//mojo/examples/ios/corefoundation_adapter:corefoundation_adapter_fixture",
         "//mojo/examples/ios/foundation_adapter:foundation_adapter_fixture",
         "//mojo/examples/ios/uikit_adapter:uikit_adapter_fixture",
-        "//mojo/examples/ios/rules_apple_trial:rules_apple_trial_fixture",
     ],
 )
 

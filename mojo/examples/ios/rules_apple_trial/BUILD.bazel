@@ -1,0 +1,23 @@
+# This package exists solely to load the public rules from the isolated module.
+# The app declaration lives in the `app` subpackage so the load-only query does
+# not instantiate, analyze, or build an ios_application.
+load("@rules_apple//apple:ios.bzl", "ios_application")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+filegroup(
+    name = "rules_apple_trial_fixture",
+    srcs = [
+        "MODULE.bazel",
+        "README.md",
+        "//app:BUILD.bazel",
+        "//app:Info.plist",
+        "//app:TrialApp.swift",
+        "run_isolated_ios_application_trial.sh",
+        "run_isolated_rules_load_trial.sh",
+    ],
+)
+
+filegroup(
+    name = "rules_loaded",
+    srcs = ["README.md"],
+)

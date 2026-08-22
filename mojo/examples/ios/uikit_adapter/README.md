@@ -25,7 +25,8 @@ RUN_SIMULATOR=1 mojo/examples/ios/uikit_adapter/run_uikit_smoke.sh
 ```
 
 That path ad-hoc signs and launches a minimal Simulator app and requires
-`MOJO_UIKIT_SCREEN_SCALE_PASS`. It establishes only that this UIKit scalar
-adapter and Swift caller run on the selected Simulator. It does not test the
+`MOJO_UIKIT_SCREEN_SCALE_PASS`; the checked-in harness has passed this scoped
+Simulator gate. It establishes only that this UIKit scalar adapter and Swift
+caller run on the selected Simulator. It does not test the
 application lifecycle, views/controllers, rendering, general UIKit coverage,
 Mojo runtime support, or physical-device behavior.

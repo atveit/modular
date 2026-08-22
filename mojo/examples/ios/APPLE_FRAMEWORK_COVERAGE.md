@@ -36,7 +36,7 @@ appropriate tier.
 | Accelerate, vDSP, BLAS, BNNS | Direct C | Simulator runtime marker passes | `accelerate_adapter/run_accelerate_smoke.sh`: vDSP vector add through a stable C header; device correctness and benchmarks remain |
 | `os`, signposts | Direct C / callback | Planned | signposted regions and structured diagnostic output |
 | Foundation | Adapter | Simulator runtime marker passes | `foundation_adapter/run_foundation_smoke.sh`: Objective-C-owned NSString/NSURL behind scalar C ABI; device execution remains a separate gate |
-| UIKit | Adapter | Compile/link fixture for `iphoneos` + `iphonesimulator`; opt-in Simulator marker | `uikit_adapter/run_uikit_smoke.sh`: Objective-C-owned `UIScreen` queried through scalar C ABI; device execution remains a separate gate |
+| UIKit | Adapter | Simulator runtime marker passes | `uikit_adapter/run_uikit_smoke.sh`: Objective-C-owned `UIScreen` queried through scalar C ABI; device execution remains a separate gate |
 | SwiftUI | Adapter | Compile-only host exists | SwiftUI owns `App`/`View`; Mojo supplies computation and model data through C |
 | Metal | Adapter + precompiled kernels | Planned | device discovery, buffer/pipeline handles, dispatch and error conversion |
 | AVFoundation | Adapter | Planned | one bounded capture or media-buffer path with explicit callback lifetime |

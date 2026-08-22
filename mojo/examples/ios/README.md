@@ -62,8 +62,8 @@ device app, installing anything, or claiming physical-device support.
 mojo/examples/ios/uikit_adapter/run_uikit_smoke.sh
 ```
 
-`RUN_SIMULATOR=1` additionally requests the scoped
-`MOJO_UIKIT_SCREEN_SCALE_PASS` marker. See
+`RUN_SIMULATOR=1` runs the scoped `MOJO_UIKIT_SCREEN_SCALE_PASS` marker; the
+checked-in harness has passed that Simulator gate. See
 [`uikit_adapter/README.md`](uikit_adapter/README.md) for the ownership and
 runtime limits.
 
@@ -441,9 +441,11 @@ mojo/examples/ios/run_compilerrt_ios_bootstrap_archive_probe.sh
 
 The helper discovers Bazel's LLVM source and generated-header roots, passing
 them only as headers to Xcode clang++; it never repackages host objects or links
-Bazel LLVM libraries. The resulting archive is core allocation/initializer/
-globals/bfloat-helper object evidence only, not AsyncRT, a completed runtime,
-link, or execution support.
+Bazel LLVM libraries. The resulting archive contains only SDK-targeted core
+allocation/initializer/global/bfloat-helper object evidence. It is not AsyncRT,
+a completed runtime, link, or execution support. The helper verifies every
+member's `IOS`/`IOSSIMULATOR` load command and iOS 17 minimum version; it does
+not repackage the host-built Bazel archive.
 
 ## SwiftUI adoption seam
 
@@ -468,6 +470,30 @@ C consumer, and harness as a single fixture. It is intentionally not an
 the macOS runtime/linker path for this target. The next integration step is a
 `mojo_ios_static_library` rule that invokes this same object/archive sequence
 and returns C-linkable metadata to a `rules_apple`/`rules_swift` SwiftUI host.
+
+### Isolated Apple-rule trial
+
+`rules_apple_trial/` is a nested, diagnostic-only Bazel module. It directly
+declares the lockfile-selected `rules_apple` 4.1.0 and `rules_swift` 3.1.2
+versions without changing the repository's root module graph. The load-only
+probe passes and the minimal iPhone/iPad `ios_application` query passes:
+
+```sh
+mojo/examples/ios/rules_apple_trial/run_isolated_rules_load_trial.sh
+mojo/examples/ios/rules_apple_trial/run_isolated_ios_application_trial.sh
+```
+
+The nested package is deliberately not included in the root iOS `filegroup`:
+its direct rule repositories are private to the nested module, and exposing it
+from the root would make ordinary `//mojo/examples/ios/...` queries fail before
+the root dependency decision is made.
+
+The second command currently reports `BLOCKED` during Bazel 9.2.0 analysis at
+the `apple_crosstool_top` transition; it does not build, sign, install, or run
+an app. This records the next real Bazel blocker rather than implying that
+`rules_apple` integration is complete. See
+[`docs/ios/BAZEL_APPLE_SWIFT_INTEGRATION.md`](../../../docs/ios/BAZEL_APPLE_SWIFT_INTEGRATION.md)
+for the exact boundary and remediation target.
 
 The C ABI is deliberately constrained to scalar/POD values and caller-owned
 buffers. Do not add Mojo strings, collections, exceptions, or owned pointers to

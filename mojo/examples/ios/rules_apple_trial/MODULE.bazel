@@ -1,0 +1,13 @@
+module(
+    name = "mojo_ios_rules_apple_trial",
+    version = "0.0.0",
+)
+
+# These are the versions selected transitively in the repository lockfile.
+# This nested module is intentionally isolated from the root dependency graph.
+bazel_dep(name = "rules_apple", version = "4.1.0", repo_name = "rules_apple")
+bazel_dep(
+    name = "rules_swift",
+    version = "3.1.2",
+    repo_name = "build_bazel_rules_swift",
+)

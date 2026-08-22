@@ -1,0 +1,18 @@
+load("@rules_apple//apple:ios.bzl", "ios_application")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+swift_library(
+    name = "trial_swift_library",
+    srcs = ["TrialApp.swift"],
+)
+
+# This target is isolated from the Modular root module and deliberately has no
+# Mojo archive dependency. The app probe is run only by its dedicated script.
+ios_application(
+    name = "trial_ios_application",
+    bundle_id = "com.modular.mojo.ios.rulestrial",
+    families = ["iphone", "ipad"],
+    infoplists = ["Info.plist"],
+    minimum_os_version = "17.0",
+    deps = [":trial_swift_library"],
+)

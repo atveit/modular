@@ -1,0 +1,3 @@
+# The isolated Apple-rule diagnostic owns a nested MODULE.bazel and is not part
+# of the root repository's package graph until its dependencies are registered.
+mojo/examples/ios/rules_apple_trial

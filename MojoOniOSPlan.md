@@ -244,12 +244,13 @@ runtime-dependent String object with no unresolved `KGEN_CompilerRT_*`
 symbols. With `RUN_SIMULATOR=1`, it also installs and launches the probe and
 observes `MOJO_RUNTIME_STRING_PROBE_PASS`, proving allocator/String lifetime
 only; it is not full runtime execution or `initialize_runtime()` support.
-An SDK-native bootstrap archive now compiles `MemoryIOS.cpp` and
-`Initialize.cpp` directly for both iOS SDKs and validates every archive member;
-`Globals.cpp` and `Support.cpp` remain excluded because direct SDK compilation
-currently stops at repository LLVM headers. This is target-compatible
-allocation/initializer evidence only, not a complete CompilerRT or AsyncRT
-runtime.
+An SDK-native bootstrap archive now compiles `MemoryIOS.cpp`, `Initialize.cpp`,
+`Globals.cpp`, and `Support.cpp` directly for both iOS SDKs, using Bazel's LLVM
+tree only for headers; every archive member has the expected `IOS` or
+`IOSSIMULATOR` metadata and iOS 17 minimum version. This is
+target-compatible allocation/initializer/global/bfloat-helper evidence only,
+not a complete CompilerRT or AsyncRT runtime or a license to repackage the
+host-built Bazel archive.
 Additional D6 manifests now record the allocation, stack-trace, and global
 table symbols required by narrow `Error` and `_Global` stdlib operations on
 both iOS triples; they are dependency evidence only. The member-level runtime
@@ -274,10 +275,14 @@ artifact chain is proven, but its original exit gate—one
 rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet
 met because this checkout still uses source fixtures and shell probes.
 UIKit now has a scalar `UIScreen` adapter with matching device/Simulator
-metadata and an opt-in Simulator marker. A read-only Bazel reconnaissance note
-records the bounded candidate pair `rules_apple` 4.1.0 plus `rules_swift` 3.1.2,
-but direct aliases are absent and module evaluation is currently blocked by the
-missing `link_hack.bzl` repository rule; no dependency change has been made.
+metadata and a passing opt-in Simulator marker. A read-only Bazel
+reconnaissance note records the bounded candidate pair `rules_apple` 4.1.0
+plus `rules_swift` 3.1.2. Restoring the historical `link_hack.bzl` contract
+fixed module traversal (`bazel mod all_paths` now completes), but the aliases
+remain absent from the root module. The isolated trial resolves and loads both
+rules and its minimal `ios_application` query passes; Bazel 9.2.0 then blocks
+analysis at `rules_apple`'s `apple_crosstool_top` transition setting. No root
+dependency or toolchain change has been made, and no app build is claimed.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both

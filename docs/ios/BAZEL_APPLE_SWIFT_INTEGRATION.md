@@ -69,7 +69,20 @@ blocked `bazel mod all_paths` has been repaired by restoring
 complete. This fixes module evaluation only; it does not make the Apple rule
 repositories visible from the main repository.
 
-Next action: have the Bazel dependency/toolchain owner trial the candidate pair
-in an isolated branch, inspect `bazel mod graph` and registered toolchains, and
-build a compile-only Simulator Swift library before declaring an application or
+The isolated trial is now checked in under
+`mojo/examples/ios/rules_apple_trial/`. Its load-only query resolves and loads
+the two public rule sets, and its minimal `ios_application` query succeeds.
+However, `bazel build --nobuild //app:trial_ios_application` is currently
+blocked before linking by Bazel 9.2.0/rules_apple 4.1.0:
+
+```text
+transition inputs [//command_line_option:apple_crosstool_top]
+do not correspond to valid settings
+```
+
+The diagnostic exits successfully after saving the full log so it is a
+reproducible blocker report, not a passing app build. Next action: have the
+Bazel dependency/toolchain owner resolve root visibility and the
+`apple_crosstool_top` transition/toolchain compatibility, then build a
+compile-only Simulator Swift library before declaring an application or
 claiming XCTest/UI/runtime support.
