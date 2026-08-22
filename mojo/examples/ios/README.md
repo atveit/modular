@@ -496,6 +496,20 @@ This candidate is not a replacement for desktop `Globals.cpp`: it does not
 claim the lock-free table's contention, allocation, or concurrent-destruction
 semantics, and it does not include AsyncRT.
 
+`run_compilerrt_ios_globals_mojo_probe.sh` closes the next narrow gate: it
+emits the checked-in `std.ffi._Global` Mojo export, links it against the
+separate SDK-built candidate archive and a C consumer, calls the export twice,
+then tears down globals. The opt-in Simulator marker is:
+
+```sh
+RUN_SIMULATOR=1 MOJO_IOS_GLOBALS_MOJO_PROBE_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_globals_mojo_probe.sh
+```
+
+This validates only the emitted named-global symbol path and basic lifecycle.
+It does not wire the candidate into `CompilerRTIOSStatic`, establish general
+stdlib support, or cover `initialize_runtime`/AsyncRT.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,

@@ -27,6 +27,14 @@ If SDK/toolchain setup stops analysis or build, the script reports `BLOCKED`
 with the command log and exits successfully so the load-only trial remains a
 separate, reproducible passing check.
 
+`run_isolated_archive_consumer_control.sh` copies the generated runtime-free
+archive/header into a temporary newer-rule workspace, verifies its Simulator
+member, and imports it with `cc_import` behind a small C caller in the minimal
+iOS app. It is intentionally a copied-artifact compatibility control, not a
+root Bazel dependency or a Mojo runtime integration. `rules_apple` may process
+and locally sign the resulting IPA as part of bundling; this control uses no
+external signing identity and never installs or launches it.
+
 With the Bazel 9.2.0 selected for this checkout, the app target is queryable
 but analysis currently stops in `rules_apple` before any SDK action because its
 transition declares `//command_line_option:apple_crosstool_top`, which Bazel

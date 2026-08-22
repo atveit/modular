@@ -293,6 +293,12 @@ temporary control using `rules_apple` 4.5.3 plus `rules_swift` 3.5.0 analyzes
 and builds a minimal Simulator `.ipa`, but that pair raises the root protobuf
 floor and has not been adopted. No root Apple-rule dependency or toolchain
 change has been made, and no canonical app build is claimed.
+That isolated control now also imports the generated runtime-free Mojo archive
+through `cc_import`, compiles a C caller of `mojo_add`, and builds a minimal
+Swift/iOS Simulator IPA. This proves that the archive is consumable by the
+Apple-rule linker in a compatible disposable workspace; it does not turn a
+`bazel-bin` artifact into a root dependency or establish Mojo runtime/app
+support.
 The runtime-free Bazel action seam now analyzes and executes under the prebuilt
 Mojo configuration through the registered `@rules_mojo` toolchain, without a
 direct compiler-binary visibility exception. It carries the pinned stdlib
@@ -312,6 +318,11 @@ and idempotent teardown pass a C++ Simulator consumer and an opt-in Simulator
 launch marker. It remains an experimental implementation, is not wired into
 `CompilerRTIOSStatic`, and makes no lock-free, concurrent-destruction, or
 AsyncRT claim.
+The follow-on probe emits a real Mojo `std.ffi._Global` object, links it against
+that separate SDK-built candidate, and observes
+`MOJO_COMPILERRT_GLOBALS_MOJO_PROBE_PASS` on the Simulator. This validates the
+current named-global symbol path and basic teardown only; it is not general
+stdlib, `initialize_runtime`, or AsyncRT support.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both

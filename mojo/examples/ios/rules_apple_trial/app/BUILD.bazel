@@ -1,5 +1,18 @@
 load("@rules_apple//apple:ios.bzl", "ios_application")
+load("@rules_cc//cc:defs.bzl", "cc_import", "cc_library")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+cc_import(
+    name = "mojo_ios_archive",
+    static_library = "libmojo_ios_static_library_smoke.a",
+    hdrs = ["mojo_ios_static_library_smoke.h"],
+)
+
+cc_library(
+    name = "mojo_ios_archive_consumer",
+    srcs = ["ArchiveConsumer.c"],
+    deps = [":mojo_ios_archive"],
+)
 
 swift_library(
     name = "trial_swift_library",
@@ -14,5 +27,8 @@ ios_application(
     families = ["iphone", "ipad"],
     infoplists = ["Info.plist"],
     minimum_os_version = "17.0",
-    deps = [":trial_swift_library"],
+    deps = [
+        ":mojo_ios_archive_consumer",
+        ":trial_swift_library",
+    ],
 )
