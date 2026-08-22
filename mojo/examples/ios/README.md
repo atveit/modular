@@ -77,6 +77,31 @@ initialize the Mojo runtime. It is therefore suitable for validating the
 compiler's target-object and native Xcode linker path independently of the
 allocator-only D6 probe; the full iOS static CompilerRT still does not exist.
 
+## Compile-only stdlib coverage
+
+`run_stdlib_compile_coverage.sh` emits LLVM only for the arm64 iOS Simulator
+and device triples from a small source that constructs explicit SIMD values and
+uses math, Darwin errno, `perf_counter_ns`, and formatted `print` output.
+
+```sh
+MOJO_BIN=bazel-bin/KGEN/tools/mojo/mojo-full \
+MOJO_STDLIB_PATH=mojo/stdlib \
+  mojo/examples/ios/run_stdlib_compile_coverage.sh
+```
+
+It checks the emitted C ABI export plus Darwin `__error` and
+`clock_gettime_nsec_np` declarations, `write` output lowering, and the
+formatting/output fixture's CompilerRT dependency. This is compile evidence
+only: it does not establish SIMD code quality, successful static-runtime
+linking, libc-output correctness, or execution on Simulator/device.
+
+For this C-ABI fixture, `mojo build --emit exe` is not an iOS linker probe: it
+intentionally has no `main`, so the driver stops with `module does not contain
+a 'main' function`. `--emit shared-lib` reaches the current Mojo driver linker
+path, which invokes the macOS linker and rejects an iOS or iOS Simulator
+object. Until an iOS-aware shared-library driver/runtime exists, emit an object
+or archive and link it with the matching Xcode SDK as this fixture does.
+
 ## Run the discovery smoke test
 
 From the repository root:

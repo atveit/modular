@@ -201,6 +201,34 @@ The IOSSIMULATOR load command is essential. The host is also arm64, but this
 is still cross-compilation because the target OS and environment differ from
 macOS.
 
+The repository-built compiler can also produce the archive directly. This is
+the same runtime-free export, without the harness's explicit `ar` step:
+
+~~~sh
+STATIC_OUT="$IOS_OUT/compiler-static-lib"
+mkdir -p "$STATIC_OUT"
+MOJO_CRASHPAD=0 \
+  "$MOJO_BIN" build \
+    --target-triple arm64-apple-ios17.0-simulator \
+    --target-cpu apple-m1 \
+    -I "$MOJO_STDLIB_PATH" \
+    --emit static-lib \
+    mojo/examples/ios/mojo_ios_smoke.mojo \
+    -o "$STATIC_OUT/libmojo_ios_smoke.a"
+
+file "$STATIC_OUT/libmojo_ios_smoke.a"
+ar -t "$STATIC_OUT/libmojo_ios_smoke.a"
+nm -gU "$STATIC_OUT/libmojo_ios_smoke.a" | \
+  grep -E '(_?mojo_add|_?mojo_hello_utf8)$'
+~~~
+
+The expected result is a real `current ar archive` containing a generated
+Mach-O object and both exported symbols. Repeat with
+`arm64-apple-ios17.0`/`apple-a7` for the device slice. The repository-built
+1.1.0 development driver supports this thin archive path; the independently
+installed Mojo 1.0.0b1 used in the original discovery does not recognize
+`--emit static-lib`.
+
 The same runtime-free source can be checked against the physical-device
 triple without signing or installing a device app:
 

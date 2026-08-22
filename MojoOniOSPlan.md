@@ -209,11 +209,17 @@ consumer.
 **Current checkpoint:** D0–D3 are demonstrated by the checked-in smoke and
 SwiftUI link/launch tutorial. D4 is implemented in the compiler and stdlib;
 focused KGEN and iOS-target Bazel tests pass, while broader cross-target
-coverage remains. D5 has a device object/archive/link probe (signing and
-installation remain intentionally skipped). D8 has a compile/link prototype
-for an Accelerate/vDSP adapter, but not yet its runtime, device, or benchmark
-gates. D9 has a matching artifact-only Core ML framework adapter fixture for
-both device and Simulator SDKs; it does not load a model or claim ANE use. D12
+coverage remains. The repository-built driver also emits a genuine static
+archive directly with `--emit static-lib` for both the Simulator and device
+triples, while the independently installed 1.0.0b1 compiler still rejects
+that option. D5 has a device object/archive/link probe (signing and
+installation remain intentionally skipped). D8 has a compile-only LLVM
+inventory covering builtins, explicit SIMD, math, Darwin errno, clocks,
+formatting, and libc output for both iOS triples, plus a compile/link
+prototype for an Accelerate/vDSP adapter; neither has runtime, device, or
+benchmark gates yet. D9 has a matching artifact-only Core ML framework
+adapter fixture for both device and Simulator SDKs; it does not load a model
+or claim ANE use. D12
 has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
 triples; it does not prove Mojo lowering, app loading, or device dispatch.
 D6 now has an explicit `//KGEN:CompilerRTIOSStatic` source-list seed plus a
@@ -242,7 +248,11 @@ iOS CPU source using `--target-accelerator metal:4` now stops earlier with an
 actionable `Mojo iOS Metal AIR is not implemented` diagnostic, rather than
 silently selecting the hard-coded macOS AIR sidecar. The earlier sidecar
 failure remains useful historical evidence for the compiler seam, but neither
-path is an iOS AIR/metallib implementation.
+path is an iOS AIR/metallib implementation. For the current runtime-free
+export fixture, `--emit exe` stops before linking because there is no `main`,
+while `--emit shared-lib` reaches the legacy macOS linker path and rejects the
+iOS object; the supported workaround remains object/static-lib emission
+followed by the matching Apple SDK linker.
 
 ### Scrutiny-adjusted next steps
 
