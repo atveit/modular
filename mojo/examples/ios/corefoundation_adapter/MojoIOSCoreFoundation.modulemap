@@ -1,0 +1,4 @@
+module MojoIOSCoreFoundation {
+  header "mojo_ios_corefoundation.h"
+  export *
+}

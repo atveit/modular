@@ -14,6 +14,24 @@ executable can be installed with `simctl` when an iOS Simulator service is
 available. The runtime-free executable is not itself a SwiftUI app; the
 adjacent `swiftui_host/` fixture is the source-level SwiftUI adoption seam.
 
+## CoreFoundation direct-C adapter
+
+`corefoundation_adapter/run_corefoundation_smoke.sh` compiles an ownership-safe
+CFString C adapter and its Swift C-ABI consumer for both arm64 iOS device and
+Simulator SDKs. It verifies the adapter symbol, framework linkage, and Mach-O
+`IOS`/`IOSSIMULATOR` metadata without using Mojo runtime support, signing a
+device app, installation, or physical-device execution.
+
+```sh
+mojo/examples/ios/corefoundation_adapter/run_corefoundation_smoke.sh
+```
+
+`RUN_SIMULATOR=1` opts into a separately scoped Simulator app launch that
+requires the `MOJO_COREFOUNDATION_CFSTRING_PASS` marker after a CFString
+create/inspect/release. See
+[`corefoundation_adapter/README.md`](corefoundation_adapter/README.md) for the
+ownership boundary and constraints.
+
 ## Metal AIR toolchain probe
 
 `run_metal_air_toolchain_probe.sh` compiles a checked-in handwritten MSL kernel
@@ -335,6 +353,20 @@ for this probe. The fixture still does not link or execute it. These symbols
 are implemented today by the desktop AsyncRT CPU-device/thread-pool runtime;
 the manifest is evidence for a future explicit iOS runtime slice, not evidence
 that that runtime is iOS-safe.
+
+## SIMD assembly probe
+
+`run_simd_assembly_probe.sh` uses the repository-built compiler to emit
+assembly for a dynamic four-lane `Float32` computation for both iOS triples:
+
+```sh
+mojo/examples/ios/run_simd_assembly_probe.sh
+```
+
+It checks the assembly for an iOS 17 `.build_version` directive, the exported
+C symbol, and an explicit four-lane NEON floating-point arithmetic mnemonic.
+It is compile-only instruction evidence, not a link, correctness, runtime, or
+performance test.
 
 ## SwiftUI adoption seam
 

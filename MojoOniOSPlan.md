@@ -227,7 +227,9 @@ inventory covering builtins, explicit SIMD, math, Darwin errno, clocks,
 formatting, and libc output for both iOS triples, plus a direct-C
 Accelerate/vDSP adapter whose opt-in Simulator run now checks a deterministic
 vDSP result marker. This is Apple-framework runtime evidence, not Mojo
-execution, device coverage, or a benchmark gate. D9 has a matching artifact-only Core ML framework
+execution, device coverage, or a benchmark gate. A CoreFoundation CFString
+adapter now has matching device/Simulator compile-link checks and an opt-in
+Simulator ownership marker. D9 has a matching artifact-only Core ML framework
 adapter fixture for both device and Simulator SDKs; it does not load a model
 or claim ANE use. D12
 has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
@@ -251,7 +253,10 @@ by the checked-in `initialize_runtime()` implementation. Because the pinned
 compiler cannot import this checkout's public `std.runtime` package, the
 fixture uses pointer-width `Int` carriers solely to emit those arm64 symbol
 names; it does not validate public `OptionalPointer` ABI signatures, call
-semantics, link, or execute AsyncRT.
+semantics, link, or execute AsyncRT. A separate D7 assembly probe now emits
+the runtime-free four-lane SIMD fixture for both iOS triples and observes
+`fmla.4s` NEON instructions; this is instruction evidence only, not a
+correctness, runtime, or performance result.
 D11 now has an artifact-only XCFramework, a
 generated local Swift Package metadata and iOS Simulator build, and a separate
 Swift consumer compile/link check for the runtime-free C ABI, covering `ios-arm64` and

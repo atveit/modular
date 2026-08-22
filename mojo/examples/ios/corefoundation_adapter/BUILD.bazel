@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only direct-C framework fixture. The shell harness uses Xcode tools
+# because rules_apple/rules_swift are not registered in this checkout.
+filegroup(
+    name = "corefoundation_adapter_fixture",
+    srcs = [
+        "CoreFoundationConsumer.swift",
+        "MojoIOSCoreFoundation.modulemap",
+        "README.md",
+        "mojo_ios_corefoundation.c",
+        "mojo_ios_corefoundation.h",
+        "run_corefoundation_smoke.sh",
+    ],
+)
+
+exports_files([
+    "CoreFoundationConsumer.swift",
+    "MojoIOSCoreFoundation.modulemap",
+    "README.md",
+    "mojo_ios_corefoundation.c",
+    "mojo_ios_corefoundation.h",
+    "run_corefoundation_smoke.sh",
+])
