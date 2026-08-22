@@ -8,15 +8,29 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../../.." && pwd)"
 swift_bin="${SWIFT_BIN:-swiftc}"
 target_triple="${MOJO_IOS_SWIFT_TRIPLE:-arm64-apple-ios17.0-simulator}"
-sdk_name="iphonesimulator"
-archive_path="${MOJO_IOS_ARCHIVE:-${repo_root}/bazel-out/ios-mojo-smoke/libmojo_ios_smoke.a}"
-output_root="${MOJO_IOS_SWIFT_LINK_OUT:-/tmp/mojo-ios-swiftui-link-probe}"
-executable_path="${output_root}/MojoIOSSmokeApp"
-app_path="${output_root}/MojoIOSSmoke.app"
 
 log() {
   printf '[mojo-ios-swiftui-link] %s\n' "$*"
 }
+
+case "${target_triple}" in
+  *-simulator)
+    sdk_name="iphonesimulator"
+    platform="simulator"
+    ;;
+  *-ios*)
+    sdk_name="iphoneos"
+    platform="device"
+    ;;
+  *)
+    log "ERROR: MOJO_IOS_SWIFT_TRIPLE must be an iOS device or Simulator triple: ${target_triple}" >&2
+    exit 1
+    ;;
+esac
+archive_path="${MOJO_IOS_ARCHIVE:-${repo_root}/bazel-out/ios-mojo-smoke/libmojo_ios_smoke.a}"
+output_root="${MOJO_IOS_SWIFT_LINK_OUT:-/tmp/mojo-ios-swiftui-link-probe}"
+executable_path="${output_root}/MojoIOSSmokeApp"
+app_path="${output_root}/MojoIOSSmoke.app"
 
 command -v "${swift_bin}" >/dev/null 2>&1 || {
   log "ERROR: SWIFT_BIN='${swift_bin}' was not found" >&2
@@ -36,12 +50,12 @@ sdk_path="$(xcrun --sdk "${sdk_name}" --show-sdk-path)"
 mkdir -p "${output_root}/module-cache" "${app_path}"
 
 log "compiler: ${swift_bin}"
-log "target: ${target_triple}"
+log "target: ${target_triple} (${platform})"
 log "SDK: ${sdk_path}"
 log "archive: ${archive_path}"
 # Swift's linker can retain the host MacOSX sysroot when only `-sdk` is
 # passed. Set SDKROOT as well so the link action and its diagnostics use the
-# same iPhone Simulator SDK; vtool below still verifies the final image.
+# same iOS SDK; vtool below still verifies the final image.
 SDKROOT="${sdk_path}" "${swift_bin}" \
   -parse-as-library \
   -target "${target_triple}" \
@@ -63,6 +77,11 @@ if command -v vtool >/dev/null 2>&1; then
 fi
 nm -gU "${executable_path}" | grep -E '(_?mojo_add|_?mojo_hello_utf8)$'
 log "PASS: SwiftUI host linked with the Mojo archive and was packaged as ${app_path}"
+
+if [[ "${platform}" != "simulator" ]]; then
+  log "PASS: device SwiftUI app packaged; use run_device_swiftui.sh for signing/install/launch"
+  exit 0
+fi
 
 if [[ "${RUN_SIMULATOR:-0}" != 1 ]]; then
   log "set RUN_SIMULATOR=1 to install and launch the SwiftUI app"

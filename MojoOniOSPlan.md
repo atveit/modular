@@ -115,10 +115,10 @@ The initial supported configurations are:
 
 | Dimension | Initial contract |
 | --- | --- |
-| Host | Apple Silicon Mac with Xcode and matching Apple SDKs |
+| Host | Apple Silicon Mac with Apple's developer tools and matching iPhoneOS/iPhoneSimulator SDKs (normally installed with Xcode) |
 | Simulator | `arm64-apple-ios17.0-simulator`, baseline CPU `apple-m1` |
 | Device | `arm64-apple-ios17.0`, portable baseline CPU `apple-a7` |
-| App lifecycle | SwiftUI/Swift |
+| App lifecycle | SwiftUI/Swift (or a later UIKit/Swift host) |
 | Mojo artifact | AOT static library with a C ABI |
 | Packaging | XCFramework plus local Swift Package wrapper |
 | Package API surface | Public iOS/iPadOS SDK inventory with direct C, adapter, callback, compile-only, and unavailable statuses |
@@ -149,6 +149,8 @@ larger destination.
 | D3 — SwiftUI Simulator slice | SwiftUI source, Clang module map, linked Simulator `.app` | Swift compile, final `nm`/`vtool`, codesign verification, `simctl install/launch`, and screenshot |
 | D4 — First-class target plumbing | Compiler target classification, CPU defaults, `--emit static-lib`, focused unit tests | iOS device and Simulator metadata, same-arch cross-compilation tests, and unchanged macOS/Linux tests |
 | D5 — Device object/archive | `arm64-apple-ios17.0` object and static archive | `IOS` load command, conservative `apple-a7` baseline, device clang link, and no accidental Simulator slice |
+| D5a — Physical device artifact | Development-signed runtime-free device `.app` plus install/launch transcript | Paired iPhone/iPad, Developer Mode, provisioning/signing, `devicectl` install, and process launch with captured output |
+| D5b — Physical visible “Hello from Mojo” | Development-signed SwiftUI `.app` showing Mojo-returned text and `20 + 22 = 42` | Device SwiftUI link, signing/install/launch, and a captured on-device screen or UI-test assertion |
 | D6 — Static runtime and core stdlib | App-safe static CompilerRT plus supported stdlib subset | Allocation, errors, strings, files, repeated initialization, and threading on Simulator without unresolved runtime symbols |
 | D7 — CPU/SIMD/threading package | Reusable core library with correctness tests and device benchmark app | NEON/vector inspection, multicore correctness/scaling, C-boundary overhead, and no unexplained Swift regression |
 | D8 — Direct C SDK products | Darwin/CoreFoundation/CoreGraphics/Accelerate/`os` headers and package products | iOS 17 compile/link tests, ABI layout checks, availability metadata, and at least one runtime test per product |
@@ -170,12 +172,55 @@ limitations. This makes each checkpoint independently auditable by a skeptical
 consumer.
 
 **Current checkpoint:** D0–D3 are demonstrated by the checked-in smoke and
-SwiftUI link/launch tutorial. D4 is implemented in the compiler and stdlib but
-still needs a clean focused Bazel test run. D5 now has a device object/archive/
-link probe (signing and installation remain intentionally skipped). D8 has a
-compile/link prototype for an Accelerate/vDSP adapter, but not yet its runtime
-and device gates. D6–D7 and D9–D13 remain planned and must not be described as
-shipped support.
+SwiftUI link/launch tutorial. D4 is implemented in the compiler and stdlib;
+focused KGEN and iOS-target Bazel tests pass, while broader cross-target
+coverage remains. D5 has a device object/archive/link probe (signing and
+installation remain intentionally skipped). D8 has a compile/link prototype
+for an Accelerate/vDSP adapter, but not yet its runtime, device, or benchmark
+gates. D6–D7 and D9–D13 remain planned and must not be described as shipped
+support. The D3 artifact chain is proven, but its original exit gate—one
+rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet
+met because this checkout still uses source fixtures and shell probes.
+
+### Scrutiny-adjusted next steps
+
+The two companion scrutiny reports are checked in at
+[`docs/ios/Mojo4iOSScrutinyCla.md`](docs/ios/Mojo4iOSScrutinyCla.md) and
+[`docs/ios/Mojo4iOSScrutinyGem.md`](docs/ios/Mojo4iOSScrutinyGem.md). They do
+not change the architecture or the staged destination, but they do tighten the
+claims and the immediate order of work:
+
+1. **Keep the evidence taxonomy explicit.** Report object emission, archive and
+   link, Simulator launch, and physical-device execution as separate gates. A
+   successful earlier gate must not be summarized as proof of a later one.
+2. **Make compiler provenance part of every result.** The installed Mojo
+   `1.0.0b1` used in the original independent probe does not recognize
+   `--emit static-lib`; the repository-pinned fork has the archive path. Every
+   report must record the compiler path/version and whether `ar` or the compiler
+   produced the archive.
+3. **Finish the missing D3 automation before calling the first delivery done.**
+   Replace the current shell/source fixtures with a small `rules_apple`/
+   `rules_swift` sample, an XCTest target for both C exports, and a UI test for
+   the rendered values. Keep the shell harness as a low-level regression probe.
+4. **Make D5a/D5b the physical-device gates.** Pair and unlock
+   `iPhoneATT`, enable Developer Mode, create a development-signed app with
+   user-supplied signing material, install it with `devicectl`/Apple's device
+   services, and capture the launch result. The checked-in
+   [`run_device_smoke.sh`](mojo/examples/ios/run_device_smoke.sh) covers D5a;
+   [`run_device_swiftui.sh`](mojo/examples/ios/run_device_swiftui.sh) covers
+   D5b. Both have artifact-only modes and explicit opt-in signing paths. The
+   gates do not require an Xcode project or the Xcode GUI: they use the SDK
+   command-line tools (`xcrun`, `clang`, `swiftc`, `codesign`, and `devicectl`).
+5. **Treat D8 as a product-by-product ladder.** The Accelerate/vDSP adapter is
+   currently compile/link evidence. Add Simulator execution, then device
+   execution and a benchmark before marking that product runtime-supported.
+6. **Prioritize D6 over framework breadth.** The static iOS CompilerRT and a
+   small allocation/string/error/parallel test matrix unlock substantially more
+   Mojo code than adding additional Apple framework names to the manifest.
+
+These adjustments are deliberately conservative: they preserve the genuine
+Simulator result while preventing a two-function, runtime-free sample from
+being mistaken for a complete iOS port.
 
 ## Phased Implementation Roadmap
 
@@ -339,7 +384,9 @@ execution, and clean process exit without unresolved runtime symbols.
 ### Phase 4 — Physical Device and Reusable Packaging
 
 1. Build the same SwiftUI sample for `arm64-apple-ios17.0` and run it on a
-   development-signed iPhone or iPad.
+   development-signed iPhone or iPad. The runtime-free C-ABI fixture has D5a
+   as a lower-level tracer bullet; D5b is the user-visible gate and must show
+   Mojo-returned text and arithmetic on the physical screen.
 2. Keep signing identities, team IDs, device identifiers, and provisioning
    profiles outside tracked defaults.
 3. Produce separate static archives for device and Simulator. Never combine
@@ -369,6 +416,12 @@ execution, and clean process exit without unresolved runtime symbols.
    platform variants and recommends XCFrameworks for libraries produced by
    alternate build systems. See
    [Apple XCFramework guidance](https://developer.apple.com/documentation/xcode/creating-a-multi-platform-binary-framework-bundle).
+
+The low-level Mojo library, C consumer, archive, app bundle, and physical
+device launch should remain reproducible with command-line tools. `xcodebuild`
+and an Xcode project are optional conveniences for the SwiftUI host, XCTest,
+code-signing configuration, and consumer-app validation; they are not a
+prerequisite for the first physical-device Mojo proof.
 
 **Exit gate:** The same package works unmodified in an iPhone Simulator and on
 a physical iPhone or iPad. A clean consumer can import the core Mojo product
@@ -558,7 +611,7 @@ until its corresponding tests run in the intended target environment.
 | Runtime | Static link; repeated initialization; globals; allocation; errors; threading; process-lifetime shutdown; dead stripping; no unresolved or duplicate runtime symbols | 3 |
 | Standard library | Compile-only coverage for every module; runtime coverage for the supported subset; explicit diagnostics for restricted or unavailable APIs | 3 |
 | Swift integration | Swift unit tests for every exported ABI; caller-owned buffer and opaque-handle tests; callback and error-path coverage | 1–6 |
-| Application integration | SwiftUI UI test; Simulator build/install/launch; physical-device launch; clean XCFramework consumer | 1 and 4 |
+| Application integration | SwiftUI UI test; Simulator build/install/launch; runtime-free physical artifact launch; visible SwiftUI physical “Hello from Mojo”; clean XCFramework consumer | 1, D5a–D5b, and 4 |
 | Compatibility | No macOS or Linux regression; configurable deployment target with iOS 17 as the tested baseline | Every phase |
 | CPU performance | On-device scalar, SIMD, allocation, C-boundary, and threading baselines; recorded toolchain, device, thermal, latency, throughput, memory, and energy context | 5 |
 | Metal performance | Correctness and on-device measurements against MSL/MPS only after the GPU phase; no Simulator performance claims | 7 |

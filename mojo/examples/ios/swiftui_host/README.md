@@ -55,10 +55,11 @@ Add `RUN_SIMULATOR=1` to the link command to boot an available iPhone
 Simulator, install the signed app, and request its launch. Set
 `SIMULATOR_UDID` when a specific device is required.
 
-The link probe emits a SwiftUI arm64 Simulator executable, verifies its
-`IOSSIMULATOR` load command and Mojo symbols, and packages a minimal ad-hoc
-signed `.app`. It does not claim Simulator launch success, and it does not
-provide XCTest coverage. In environments where Swift emits a benign
+The link probe emits a SwiftUI arm64 iOS executable for the selected
+`MOJO_IOS_SWIFT_TRIPLE` (Simulator by default, or `arm64-apple-ios17.0` for a
+device), verifies the `IOSSIMULATOR`/`IOS` load command and Mojo symbols, and
+packages a minimal ad-hoc signed `.app`. It does not claim device signing or
+launch, and it does not provide XCTest coverage. In environments where Swift emits a benign
 `using sysroot for 'MacOSX' but targeting 'iPhone'` warning, `vtool` remains the
 source of truth for the final platform metadata. The controlled probe showed
 that `swiftc -sdk <iphonesimulator SDK>` alone still emitted that warning; the
