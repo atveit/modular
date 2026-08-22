@@ -98,12 +98,17 @@ transition patch or an older Apple-rules pin is not a safe substitute for that
 graph review.
 
 The 5.0.0-rc3/4.0.0-rc3 control is the first candidate that reaches the
-repository's own C++ toolchain under Bazel 10. The next dependency-owner task
-is therefore to add an explicit iOS/Simulator branch (and declared SDK inputs)
-to that toolchain in a disposable branch, then repeat the CcInfo archive
-consumer. Do not make the RC pair or a broad macOS-toolchain fallback a root
-change solely from this control; its dependency churn is material and the
-control still has no Mojo app/runtime claim.
+repository's own C++ toolchain under Bazel 10. A disposable prototype added
+Xcode-discovered iPhoneOS/iPhoneSimulator sysroot repositories, standard
+device/Simulator constraints, and target triples; that clears the initial
+sysroot select. Analysis then stops at `args:cpp_compile_args`, whose
+`-stdlib` select is still Linux/macOS-only, with further macOS-only compile,
+link, rpath, and sanitizer selects behind it. The next dependency-owner task
+is a complete, target-aware iOS C++ toolchain branch (with declared SDK
+inputs), followed by the CcInfo archive consumer. Do not make the RC pair or a
+broad macOS-toolchain fallback a root change solely from this control; its
+dependency churn is material and the control still has no Mojo app/runtime
+claim.
 
 ## Present blockers and next action
 

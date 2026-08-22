@@ -317,8 +317,13 @@ A newer disposable Bazel-10 control with `rules_apple` 5.0.0-rc3 and
 reaches the repository-owned `macos_clang_toolchain`. Analysis then stops
 because its configurable compiler args have Linux/macOS cases but no
 iOS/default branch. The RC pair also changes apple_support and Swift argument
-parser dependencies, so the next step is an owner-reviewed iOS toolchain
-branch, not a root dependency upgrade or a macOS fallback.
+parser dependencies, so the disposable follow-up added Xcode-discovered
+iPhoneOS/iPhoneSimulator sysroots and device/Simulator constraints only. That
+clears the first sysroot select but then stops at `args:cpp_compile_args`,
+whose `-stdlib` select is Linux/macOS-only; more macOS-only compile/link/rpath
+and sanitizer selects remain. The next step is an owner-reviewed complete
+target-aware iOS C++ toolchain branch, not a root dependency upgrade or a
+macOS fallback.
 That isolated control now also imports the generated runtime-free Mojo archive
 through `cc_import`, compiles a C caller of `mojo_add`, and builds a minimal
 Swift/iOS Simulator IPA. This proves that the archive is consumable by the
