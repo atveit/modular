@@ -626,6 +626,12 @@ platform/toolchain. Until those SDK tools and the SDK are declared through an
 Apple toolchain, any successful action is host-Xcode evidence only, not a
 hermetic Bazel iOS build.
 
+The rule also returns `CcInfo`: its generated header is in the compilation
+context and its generated archive is a PIC static library in the linking
+context. A future same-graph Apple target can depend on this provider instead
+of referring to a `bazel-bin` path. That provider seam does not by itself
+register Apple rules or make the host-Xcode action hermetic.
+
 For now, `//mojo/examples/ios:ios_simulator_smoke_fixture` is intentionally a
 source `filegroup`; it is not yet an `ios_application` or a runnable Bazel
 test. That limitation is recorded by the scrutiny reports and remains the D3

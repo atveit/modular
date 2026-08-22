@@ -1,5 +1,8 @@
 """Diagnostic Bazel action for a runtime-free Mojo iOS static library."""
 
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+
 MojoIOSStaticLibraryInfo = provider(
     doc = "C-linkable Mojo iOS archive and its exported C header.",
     fields = {
@@ -81,6 +84,25 @@ nm -gU "{object_file}" | grep -Eq '(_?mojo_hello_utf8)$'
     )
     return [
         DefaultInfo(files = depset([archive, header])),
+        CcInfo(
+            compilation_context = cc_common.create_compilation_context(
+                headers = depset([header]),
+                includes = depset([header.dirname]),
+            ),
+            linking_context = cc_common.create_linking_context(
+                linker_inputs = depset([
+                    cc_common.create_linker_input(
+                        owner = ctx.label,
+                        libraries = depset([
+                            cc_common.create_library_to_link(
+                                actions = ctx.actions,
+                                pic_static_library = archive,
+                            ),
+                        ]),
+                    ),
+                ]),
+            ),
+        ),
         MojoIOSStaticLibraryInfo(
             archive = archive,
             header = header,
@@ -103,5 +125,5 @@ mojo_ios_static_library = rule(
         ),
     },
     toolchains = ["@rules_mojo//:toolchain_type"],
-    doc = "Builds only the runtime-free C ABI fixture as an iOS Simulator archive.",
+    doc = "Builds a runtime-free Simulator archive and exposes a CcInfo ABI seam.",
 )

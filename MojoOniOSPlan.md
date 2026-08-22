@@ -312,6 +312,10 @@ separate KGEN source filegroup exposes only the four SDK-bootstrap CompilerRT
 sources. The action is deliberately local/non-sandboxed and discovers Xcode
 SDK tools through `xcrun`; therefore this is a real Bazel archive artifact but
 not yet a hermetic Bazel iOS toolchain or app build.
+The rule now also returns a `CcInfo` compilation context for its generated
+header and linking context for its generated archive, so a future same-graph
+Apple target can consume the artifact without a `bazel-bin` path. This provider
+seam is not itself Apple-rule registration, SDK declaration, or runtime support.
 The expected-failure `Globals.cpp` link boundary is complemented by a separate
 `GlobalsIOS.cpp` candidate: its named/indexed lookup, insertion, destruction,
 and idempotent teardown pass a C++ Simulator consumer and an opt-in Simulator
