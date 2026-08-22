@@ -50,6 +50,23 @@ mojo/examples/ios/foundation_adapter/run_foundation_smoke.sh
 [`foundation_adapter/README.md`](foundation_adapter/README.md) for the
 ownership and runtime limits.
 
+## UIKit Objective-C adapter
+
+`uikit_adapter/run_uikit_smoke.sh` keeps `UIScreen` ownership inside an
+Objective-C adapter and exposes only the scalar main-screen scale through C.
+Its default harness checks `UIKit.framework` links and `IOS`/`IOSSIMULATOR`
+metadata for device and Simulator slices without using Mojo runtime, signing a
+device app, installing anything, or claiming physical-device support.
+
+```sh
+mojo/examples/ios/uikit_adapter/run_uikit_smoke.sh
+```
+
+`RUN_SIMULATOR=1` additionally requests the scoped
+`MOJO_UIKIT_SCREEN_SCALE_PASS` marker. See
+[`uikit_adapter/README.md`](uikit_adapter/README.md) for the ownership and
+runtime limits.
+
 ## Metal AIR toolchain probe
 
 `run_metal_air_toolchain_probe.sh` compiles a checked-in handwritten MSL kernel
@@ -410,6 +427,22 @@ It verifies archive members, the runtime-free C ABI exports, and member
 `IOSSIMULATOR`/`IOS` metadata. It does not link, sign, install, or run the
 result. The independently installed Mojo 1.0.0b1 rejects `--emit static-lib`
 at option parsing and is intentionally not used by this probe.
+
+## SDK-native CompilerRT bootstrap archive
+
+`run_compilerrt_ios_bootstrap_archive_probe.sh` compiles `MemoryIOS.cpp` and
+`Initialize.cpp` directly with the iPhoneSimulator and iPhoneOS SDK toolchains,
+then verifies every object is target-correct before archiving:
+
+```sh
+mojo/examples/ios/run_compilerrt_ios_bootstrap_archive_probe.sh
+```
+
+It deliberately excludes `Support.cpp` and `Globals.cpp`: direct SDK compiles
+currently stop at repository LLVM headers, so the helper never repackages host
+objects. The resulting bootstrap archive is allocation/initializer metadata
+evidence only, not a full CompilerRT, globals, AsyncRT, link, or execution
+claim.
 
 ## SwiftUI adoption seam
 

@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only Objective-C UIKit adapter fixture. Its shell harness uses Xcode
+# SDK tools because this checkout has no rules_apple/rules_swift registration.
+filegroup(
+    name = "uikit_adapter_fixture",
+    srcs = [
+        "MojoIOSUIKit.modulemap",
+        "README.md",
+        "UIKitConsumer.swift",
+        "mojo_ios_uikit.h",
+        "mojo_ios_uikit.m",
+        "run_uikit_smoke.sh",
+    ],
+)
+
+exports_files([
+    "MojoIOSUIKit.modulemap",
+    "README.md",
+    "UIKitConsumer.swift",
+    "mojo_ios_uikit.h",
+    "mojo_ios_uikit.m",
+    "run_uikit_smoke.sh",
+])

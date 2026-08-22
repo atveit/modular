@@ -24,6 +24,7 @@ filegroup(
         "run_pinned_mojo_air_diagnostic.sh",
         "check_compilerrt_ios_static_metadata.sh",
         "run_runtime_initialize_symbol_manifest.sh",
+        "run_compilerrt_ios_bootstrap_archive_probe.sh",
         "run_simd_assembly_probe.sh",
         "run_static_lib_emission_probe.sh",
         "run_static_runtime_link_probe.sh",
@@ -40,6 +41,7 @@ filegroup(
         "//mojo/examples/ios/coregraphics_adapter:coregraphics_adapter_fixture",
         "//mojo/examples/ios/corefoundation_adapter:corefoundation_adapter_fixture",
         "//mojo/examples/ios/foundation_adapter:foundation_adapter_fixture",
+        "//mojo/examples/ios/uikit_adapter:uikit_adapter_fixture",
     ],
 )
 
@@ -59,6 +61,7 @@ exports_files([
     "run_pinned_mojo_air_diagnostic.sh",
     "check_compilerrt_ios_static_metadata.sh",
     "run_runtime_initialize_symbol_manifest.sh",
+    "run_compilerrt_ios_bootstrap_archive_probe.sh",
     "run_simd_assembly_probe.sh",
     "run_static_lib_emission_probe.sh",
     "run_static_runtime_link_probe.sh",
