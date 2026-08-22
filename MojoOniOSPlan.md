@@ -209,11 +209,12 @@ gates. D9 has a matching artifact-only Core ML framework adapter fixture for
 both device and Simulator SDKs; it does not load a model or claim ANE use. D12
 has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
 triples; it does not prove Mojo lowering, app loading, or device dispatch.
-D6–D7 and the runtime portions of D9–D13 remain planned and must not be
-described as shipped support. The D3 artifact chain is proven, but its original
-exit gate—one rules_apple/rules_swift Bazel command plus XCTest/UI-test
-assertions—is not yet met because this checkout still uses source fixtures and
-shell probes.
+D6 now has a source/dependency implementation map, but no static runtime
+target or runtime-backed Simulator test yet. D7 and the runtime portions of
+D9–D13 remain planned and must not be described as shipped support. The D3
+artifact chain is proven, but its original exit gate—one
+rules_apple/rules_swift Bazel command plus XCTest/UI-test assertions—is not yet
+met because this checkout still uses source fixtures and shell probes.
 
 ### Scrutiny-adjusted next steps
 
@@ -396,6 +397,12 @@ symbols, and target-aware diagnostics. Existing macOS and Linux behavior remains
 unchanged.
 
 ### Phase 3 — Static iOS CompilerRT and Core Standard Library
+
+The source/dependency inventory for this phase is maintained in
+[`docs/ios/COMPILERRT_IOS_STATIC_RUNTIME.md`](docs/ios/COMPILERRT_IOS_STATIC_RUNTIME.md).
+It is intentionally a separate implementation map: the existing desktop
+`CompilerRT` target must not be reused through its source glob or shared-library
+output name.
 
 1. Split or parameterize `KGENCompilerRT` so iOS receives a statically linkable,
    application-safe runtime instead of `libKGENCompilerRTShared.dylib`.

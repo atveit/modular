@@ -1,0 +1,22 @@
+package(default_visibility = ["//visibility:public"])
+
+# Source-only runtime probe. Its harness SKIPs unless a compatible static iOS
+# runtime archive is supplied, then performs a real Simulator launch.
+filegroup(
+    name = "runtime_string_probe_fixture",
+    srcs = [
+        "README.md",
+        "mojo_ios_runtime_string.h",
+        "mojo_ios_runtime_string.mojo",
+        "run_runtime_string_simulator.sh",
+        "runtime_string_main.c",
+    ],
+)
+
+exports_files([
+    "README.md",
+    "mojo_ios_runtime_string.h",
+    "mojo_ios_runtime_string.mojo",
+    "run_runtime_string_simulator.sh",
+    "runtime_string_main.c",
+])

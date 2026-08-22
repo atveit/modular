@@ -30,6 +30,23 @@ mojo/examples/ios/run_metal_air_toolchain_probe.sh
 Set `MOJO_IOS_METAL_AIR_TARGETS` to a space-separated candidate list and
 `MOJO_IOS_METAL_AIR_PROBE_OUT` to select an output directory.
 
+## Repository-pinned Mojo diagnostic
+
+`run_pinned_mojo_air_diagnostic.sh` is a non-building diagnostic for the
+repository-built `//KGEN:mojo` driver. It records the compiler path, SHA-256,
+version, exact iOS AIR target commands, diagnostics, and any assembly artifact.
+It reports `SKIP` when `bazel-bin/KGEN/tools/mojo/mojo-full` is absent, rather
+than silently falling back to `mojo` on `PATH`.
+
+```sh
+./bazelw build --config=build-mojo //KGEN:mojo
+mojo/examples/ios/run_pinned_mojo_air_diagnostic.sh
+```
+
+An existing built driver can be supplied with `MOJO_IOS_PINNED_MOJO`. This
+probe intentionally does not infer AIR/metallib or device support from a
+successful assembly emit.
+
 The Mojo module imports no stdlib module, allocates no memory, and does not
 initialize the Mojo runtime. It is therefore suitable for validating the
 compiler's target-object and native Xcode linker path before the iOS static
@@ -159,6 +176,30 @@ mojo/examples/ios/coreml_adapter/run_coreml_link_smoke.sh
 It does not bundle a model or call Core ML, and therefore makes no prediction,
 compute-unit, ANE, runtime, device, or performance claim. See
 [`coreml_adapter/README.md`](coreml_adapter/README.md) for the artifact checks.
+
+`runtime_string_probe/` is the intentionally separate Simulator-only runtime
+gate. It allocates a Mojo `String` and requires an explicitly supplied static
+iOS Simulator runtime archive; without one, its harness reports `SKIP` rather
+than claiming the runtime-free smoke result as runtime coverage. See
+[`runtime_string_probe/README.md`](runtime_string_probe/README.md).
+
+## Static runtime link probe
+
+`run_static_runtime_link_probe.sh` is the D6 pre-link diagnostic. It compiles
+a String-allocating Mojo C ABI export with the selected iOS SDK target and
+records its undefined-symbol manifest. With no runtime archive, it exits after
+that evidence; this is the expected current state. When a proposed
+target-compatible static runtime exists, supply it explicitly:
+
+```sh
+MOJO_IOS_COMPILERRT_ARCHIVE=/absolute/path/libKGENCompilerRTIOS.a \
+  mojo/examples/ios/run_static_runtime_link_probe.sh
+```
+
+The script uses Xcode's `clang++` and fails if the linked executable retains a
+`KGEN_CompilerRT_` undefined symbol. A clean link remains link-only evidence:
+Simulator launch must separately prove allocation, String lifetime, repeated
+initialization, and clean teardown.
 
 ## SwiftUI adoption seam
 
