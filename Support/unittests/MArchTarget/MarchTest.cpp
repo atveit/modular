@@ -59,6 +59,18 @@ TEST(ArchTarget, getMArchTargetInfo) {
   EXPECT_EQ(info->triple.str(), "aarch64-unknown-linux-gnu");
 }
 
+TEST(ArchTarget, DiagnosesUnsupportedIOSAIRTarget) {
+  // Xcode's Metal tools accept this AIR spelling, but it is not an LLVM CPU
+  // target and Mojo has no iOS AIR lowering path. Keep this distinct from a
+  // generic Clang target-info failure so callers receive an actionable error.
+  ErrorOr<std::vector<std::string>> features =
+      M::getFeatures("air64-apple-ios17.0", "");
+  ASSERT_TRUE(features.isError());
+  EXPECT_THAT(std::string(features.getError()),
+              testing::HasSubstr("Mojo-generated iOS Metal AIR is not "
+                                 "implemented yet"));
+}
+
 // getTargetInfoFor must expand the explicit --target-features delta against
 // the CPU model defaults so that hasFeature() reflects what LLVM will actually
 // compile for. znver4 enables avx512f by default; omitting -avx512f from the

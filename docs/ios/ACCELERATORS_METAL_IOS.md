@@ -40,6 +40,28 @@ The existing host-side code is a useful internal reference, not an iOS bridge:
 serializes kernel arguments and buffer handles through AsyncRT. Neither provides
 an app-bundle metallib loader or an iOS-safe ownership/error boundary.
 
+## Pinned compiler evidence
+
+The repository-built driver was produced with:
+
+```sh
+./bazelw build --config=build-mojo //KGEN:mojo
+```
+
+It successfully emits the runtime-free host object for
+`arm64-apple-ios17.0-simulator` and the existing C/Simulator smoke app passes
+when invoked with `-I mojo/stdlib`. It does **not** accept either direct
+`air64-apple-ios17.0` or `air64-apple-ios17.0-simulator` triples; both fail
+before parsing with `unknown target triple`.
+
+The more important control is a GPU source compiled for an iOS host triple
+with `--target-accelerator metal:4`. That invocation reaches the GPU sidecar
+pipeline but then tries to create the hard-coded `air64-apple-macosx` target and
+fails with `target 'air64-apple-macosx' is not supported by this build`. This
+pinpoints the current porting seam: the host iOS target is recognized, while
+the generated Metal sidecar target is still macOS-specific. It is evidence for
+the Stage 1 target factory work below, not evidence of iOS GPU compilation.
+
 ## Staged implementation
 
 ### Stage 0 — establish the exact Apple toolchain contract

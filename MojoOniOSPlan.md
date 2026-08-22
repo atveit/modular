@@ -226,7 +226,10 @@ The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both
 candidate `air64-apple-ios17.0` triples as unknown targets, so that is a
-confirmed compiler gap rather than an installed-compiler provenance issue.
+confirmed compiler gap rather than an installed-compiler provenance issue. A
+GPU source using an iOS host triple plus `--target-accelerator metal:4` reaches
+the sidecar path but then fails because it requests the hard-coded
+`air64-apple-macosx` target; this is the next Metal compiler seam to fix.
 
 ### Scrutiny-adjusted next steps
 

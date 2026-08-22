@@ -201,6 +201,11 @@ The script uses Xcode's `clang++` and fails if the linked executable retains a
 Simulator launch must separately prove allocation, String lifetime, repeated
 initialization, and clean teardown.
 
+It records the resolved `MOJO_BIN` path, compiler SHA-256/version, and
+`MOJO_STDLIB_PATH` (defaulting to this checkout's `mojo/stdlib`), and asserts
+that the emitted allocation probe references both expected aligned-allocation
+CompilerRT symbols before reporting its current `SKIP`.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,

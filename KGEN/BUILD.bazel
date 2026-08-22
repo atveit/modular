@@ -1001,6 +1001,28 @@ modular_shared_library(
     ],
 )
 
+# Deliberately small, statically linkable CompilerRT seed for the iOS D6 work.
+# It is not yet the iOS runtime: in particular it omits allocation and AsyncRT
+# until those components have iOS-safe implementations and link evidence.
+# Keep this source list explicit so Python/JIT, tracing, plugin, device-context,
+# and desktop fault-handler code cannot enter an app through this target.
+modular_cc_library(
+    name = "CompilerRTIOSStatic",
+    srcs = [
+        "lib/CompilerRT/Globals.cpp",
+        "lib/CompilerRT/Initialize.cpp",
+        "lib/CompilerRT/Support.cpp",
+    ],
+    local_defines = ["MODULAR_BUILDING_COMPILERRT"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//Support:ADT",
+        "//Support:Base",
+        "//Support:SymbolExport",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
 modular_cc_library(
     name = "Support",
     srcs = glob(

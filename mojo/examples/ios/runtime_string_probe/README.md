@@ -23,3 +23,8 @@ explicit `SKIP`. The pinned Mojo 1.0.0b1 distribution currently has no
 discovered static iOS runtime archive, so it cannot validate the runtime path.
 Object emission, a runtime-free link, or a missing archive must never be
 reported as a runtime pass.
+
+For reproducibility, set `MOJO_BIN` to the exact compiler under test and,
+when that compiler needs checkout sources, set `MOJO_STDLIB_PATH` explicitly.
+The harness records the resolved compiler path, its SHA-256, version, and the
+selected stdlib path before any `SKIP` decision.

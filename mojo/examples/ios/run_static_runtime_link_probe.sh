@@ -25,6 +25,9 @@ fail() {
 
 command -v "${mojo_bin}" >/dev/null 2>&1 || fail "MOJO_BIN='${mojo_bin}' was not found"
 command -v xcrun >/dev/null 2>&1 || fail "xcrun is required"
+[[ -d "${stdlib_path}" ]] || fail "MOJO_STDLIB_PATH is not a directory: ${stdlib_path}"
+mojo_path="$(command -v "${mojo_bin}")"
+compiler_hash="$(shasum -a 256 "${mojo_path}" | awk '{print $1}')"
 
 case "${target_triple}" in
   *-simulator)
@@ -49,11 +52,13 @@ host_object_path="${output_root}/runtime_probe_main.o"
 executable_path="${output_root}/mojo_ios_runtime_probe"
 undefined_path="${output_root}/mojo_ios_runtime_probe.undefined.txt"
 
-log "compiler: ${mojo_bin}"
+log "compiler: ${mojo_path} ($(${mojo_path} --version))"
+log "compiler sha256: ${compiler_hash}"
+log "stdlib: ${stdlib_path}"
 log "target: ${target_triple} (${target_cpu})"
 log "SDK: ${sdk_path}"
 log "emitting String/allocation probe object"
-"${mojo_bin}" build \
+"${mojo_path}" build \
   --target-triple "${target_triple}" \
   --target-cpu "${target_cpu}" \
   -I "${stdlib_path}" \
@@ -61,6 +66,10 @@ log "emitting String/allocation probe object"
   -o "${object_path}"
 
 nm -u "${object_path}" | sort | tee "${undefined_path}"
+for expected_symbol in _KGEN_CompilerRT_AlignedAlloc _KGEN_CompilerRT_AlignedFree; do
+  grep -qx "${expected_symbol}" "${undefined_path}" || \
+    fail "runtime-using object is missing expected symbol: ${expected_symbol}"
+done
 file "${object_path}"
 if command -v vtool >/dev/null 2>&1; then
   vtool -show-build "${object_path}" | sed -n '1,40p'

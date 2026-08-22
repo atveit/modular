@@ -127,6 +127,16 @@ M::getFeaturesFromClang(std::shared_ptr<clang::TargetOptions> opts,
 /// options if the native LLVM helper fails.
 ErrorOr<std::vector<std::string>> M::getFeatures(StringRef triple,
                                                  StringRef cpu) {
+  // `air64` is accepted by Apple's Metal command-line tools, but it is not an
+  // LLVM/Clang CPU target triple and Mojo has no iOS AIR lowering path yet.
+  // Diagnose it before Clang reduces the spelling to the unhelpful generic
+  // "unknown target triple" error.
+  if (triple.starts_with("air64-apple-ios"))
+    return Error("iOS AIR target '" + triple +
+                 "' is not supported by this Mojo compiler; use an "
+                 "arm64-apple-ios target for CPU output. Mojo-generated iOS "
+                 "Metal AIR is not implemented yet.");
+
   auto opts = std::make_shared<clang::TargetOptions>();
   opts->Triple = triple;
   opts->CPU = cpu;

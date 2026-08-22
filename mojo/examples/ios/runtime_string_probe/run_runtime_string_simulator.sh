@@ -11,6 +11,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ios_dir="$(cd "${script_dir}/.." && pwd)"
 mojo_bin="${MOJO_BIN:-mojo}"
+stdlib_path="${MOJO_STDLIB_PATH:-}"
 target_triple="${MOJO_IOS_RUNTIME_SIMULATOR_TRIPLE:-arm64-apple-ios17.0-simulator}"
 target_cpu="${MOJO_IOS_RUNTIME_SIMULATOR_CPU:-apple-m1}"
 runtime_archive="${MOJO_IOS_RUNTIME_ARCHIVE:-}"
@@ -33,6 +34,19 @@ command -v xcrun >/dev/null 2>&1 || {
   log "ERROR: xcrun is required" >&2
   exit 1
 }
+mojo_path="$(command -v "${mojo_bin}")"
+if [[ -n "${stdlib_path}" && ! -d "${stdlib_path}" ]]; then
+  log "ERROR: MOJO_STDLIB_PATH is not a directory: ${stdlib_path}" >&2
+  exit 1
+fi
+compiler_hash="$(shasum -a 256 "${mojo_path}" | awk '{print $1}')"
+log "compiler: ${mojo_path} ($(${mojo_path} --version))"
+log "compiler sha256: ${compiler_hash}"
+if [[ -n "${stdlib_path}" ]]; then
+  log "stdlib: ${stdlib_path}"
+else
+  log "stdlib: compiler default (MOJO_STDLIB_PATH unset)"
+fi
 
 if [[ -z "${runtime_archive}" ]]; then
   skip "MOJO_IOS_RUNTIME_ARCHIVE is unset; the pinned compiler distribution does not provide a discovered static iOS runtime"
@@ -61,17 +75,22 @@ mkdir -p "${output_root}"
 app_root="$(mktemp -d "${output_root}/app.XXXXXX")"
 app_path="${app_root}/mojo_ios_runtime_string.app"
 
-log "compiler: ${mojo_bin} ($(${mojo_bin} --version))"
 log "target: ${target_triple} (${target_cpu})"
 log "runtime archive: ${runtime_archive}"
 log "SDK: ${sdk_path}"
 log "emitting runtime-using Mojo object"
-"${mojo_bin}" build \
-  --target-triple "${target_triple}" \
-  --target-cpu "${target_cpu}" \
-  --emit object \
-  "${script_dir}/mojo_ios_runtime_string.mojo" \
+mojo_build_args=(
+  build
+  --target-triple "${target_triple}"
+  --target-cpu "${target_cpu}"
+  --emit object
+  "${script_dir}/mojo_ios_runtime_string.mojo"
   -o "${object_path}"
+)
+if [[ -n "${stdlib_path}" ]]; then
+  mojo_build_args=("${mojo_build_args[@]:0:1}" -I "${stdlib_path}" "${mojo_build_args[@]:1}")
+fi
+"${mojo_path}" "${mojo_build_args[@]}"
 
 log "compiling C ABI runtime consumer"
 "${clang_bin}" \
