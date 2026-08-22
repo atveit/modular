@@ -250,7 +250,14 @@ tree only for headers; every archive member has the expected `IOS` or
 `IOSSIMULATOR` metadata and iOS 17 minimum version. This is
 target-compatible allocation/initializer/global/bfloat-helper evidence only,
 not a complete CompilerRT or AsyncRT runtime or a license to repackage the
-host-built Bazel archive.
+host-built Bazel archive. Supplying that SDK-native archive to the String link
+probe now also produces a clean Simulator link and the same launch marker; the
+claim remains limited to allocator/String lifetime because no initializer or
+AsyncRT entry point is exercised.
+An expected-failure C link boundary now shows that adding `Globals.cpp` still
+requires `M::GlobalTable::{getOrCreate,clear}` plus LLVM container/runtime
+support; no executable is produced. This is the next concrete D6 dependency
+map, not a runtime pass.
 Additional D6 manifests now record the allocation, stack-trace, and global
 table symbols required by narrow `Error` and `_Global` stdlib operations on
 both iOS triples; they are dependency evidence only. The member-level runtime
@@ -287,11 +294,12 @@ and builds a minimal Simulator `.ipa`, but that pair raises the root protobuf
 floor and has not been adopted. No root Apple-rule dependency or toolchain
 change has been made, and no canonical app build is claimed.
 The runtime-free Bazel action seam now analyzes under the prebuilt Mojo
-configuration. A narrow `//KGEN:consumers` grant permits only the iOS example
-package to depend on the compiler executable, and a separate source filegroup
-exposes only the four SDK-bootstrap CompilerRT sources. The action's fresh
-archive execution remains a manual/toolchain gate; the checked-in shell probe
-is still the artifact evidence until a clean Bazel action run is captured.
+configuration through the registered `@rules_mojo` toolchain, without a direct
+compiler-binary visibility exception. A separate KGEN source filegroup exposes
+only the four SDK-bootstrap CompilerRT sources. The action's fresh archive
+execution remains a manual/toolchain gate because Xcode SDK tools are not yet
+declared Bazel inputs; the checked-in shell probe is still the artifact evidence
+until a clean hermetic Bazel action run is captured.
 The repository-built driver is now available at
 `bazel-bin/KGEN/tools/mojo/mojo-full`; with `-I mojo/stdlib` it reproduces the
 runtime-free object/archive/link/launch Simulator chain. It still rejects both

@@ -30,7 +30,8 @@ An isolated compatibility control upgraded only its nested module to
 built the minimal arm64 Simulator UIKit `.ipa`; the legacy
 `apple_crosstool_top` transition error did not occur. This proves that the
 newer pair can establish an Apple/Swift toolchain in isolation, not that it can
-be added to the root graph safely.
+be added to the root graph safely. The checked-in opt-in harness is
+`mojo/examples/ios/rules_apple_trial/run_isolated_compatibility_control.sh`.
 
 ## Minimal isolated-trial shape
 

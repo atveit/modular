@@ -13,6 +13,7 @@ filegroup(
         "//app:Info.plist",
         "//app:TrialApp.swift",
         "run_isolated_ios_application_trial.sh",
+        "run_isolated_compatibility_control.sh",
         "run_isolated_rules_load_trial.sh",
     ],
 )

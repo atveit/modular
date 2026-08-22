@@ -27,6 +27,10 @@ mkdir -p "${output_root}"
 
 if [[ -z "${MOJO_IOS_BAZEL_EXEC_ROOT:-}" || -z "${MOJO_IOS_BAZEL_BIN:-}" ]]; then
   [[ -x "${bazel_wrapper}" ]] || fail "bazelw is required to locate generated LLVM headers"
+  # The generated LLVM config headers and the external source tree may not be
+  # materialized after a clean or a different Bazel configuration. Build only
+  # the host graph as a header seed; its archive is never an iOS link input.
+  "${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSStatic
 fi
 exec_root="${MOJO_IOS_BAZEL_EXEC_ROOT:-$("${bazel_wrapper}" info --config=build-mojo execution_root)}"
 bazel_bin="${MOJO_IOS_BAZEL_BIN:-$("${bazel_wrapper}" info --config=build-mojo bazel-bin)}"

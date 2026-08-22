@@ -464,6 +464,22 @@ repackages its host archive. The checked-in shell probe is the current fresh
 Simulator compile/archive evidence; a Bazel action artifact is not claimed until
 that one-time compiler build completes in a clean environment.
 
+`run_compilerrt_ios_globals_link_boundary.sh` is the next, deliberately
+expected-failure Simulator diagnostic. It compiles a C consumer of
+`Initialize`, allocator, and indexed-global entry points against a freshly
+SDK-built four-source archive. It requires the linker to report the missing
+`M::GlobalTable::{getOrCreate,clear}` support used by `Globals.cpp` and exits
+successfully only when that boundary is observed:
+
+```sh
+MOJO_IOS_COMPILERRT_GLOBALS_BOUNDARY_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_globals_link_boundary.sh
+```
+
+This confirms a missing SDK-native support dependency; it does not produce or
+run an app, provide global-runtime support, or change the separate AsyncRT
+blocker.
+
 ## SwiftUI adoption seam
 
 `swiftui_host/` contains the source-only SwiftUI `App`/`View`, Clang module map,
@@ -542,11 +558,23 @@ Mojo compiler should not embed provisioning profiles or signing identities.
 `//mojo/examples/ios:mojo_ios_static_library_smoke` is an example-local
 prototype of that action. Its rule declares the runtime-free Mojo source and C
 header as inputs, requests `arm64-apple-ios17.0-simulator` object emission from
-the pinned `mojo-full` tool, invokes the Simulator SDK `libtool`, and is
+the registered Mojo toolchain, invokes the Simulator SDK `libtool`, and is
 designed to validate the extracted archive member's `IOSSIMULATOR` metadata plus
-C ABI exports. It has no signing, app, or Mojo-runtime behavior. The iOS package has a narrow
-KGEN visibility grant for the compiler executable; it does not make KGEN
-public.
+C ABI exports. It has no signing, app, or Mojo-runtime behavior.
+
+The toolchain supplies the compiler and its transitive runfiles as declared
+action tools. Therefore `--config=prebuilt-mojo` can use a declared prebuilt
+host compiler without rebuilding `mojo-full`; an already-complete
+`--config=build-mojo` compiler output is likewise a declared input. This avoids
+an undeclared `bazel-bin` compiler path and makes the compiler half of the
+action hermetic.
+
+The full action is not hermetic yet: it discovers `libtool`, `ar`, and `vtool`
+through host `xcrun` and resolves the Simulator SDK at execution time. The root
+configuration also disables Apple C++ toolchain detection and registers no iOS
+platform/toolchain. Until those SDK tools and the SDK are declared through an
+Apple toolchain, any successful action is host-Xcode evidence only, not a
+hermetic Bazel iOS build.
 
 For now, `//mojo/examples/ios:ios_simulator_smoke_fixture` is intentionally a
 source `filegroup`; it is not yet an `ios_application` or a runnable Bazel

@@ -41,3 +41,17 @@ is not checked in as the default because the root graph currently selects the
 4.1.0/3.1.2 pair transitively and the newer Swift dependency raises the minimum
 protobuf version. A dependency-owner review is required before changing the
 root graph; this fixture remains the reproducible legacy blocker.
+
+Run the opt-in compatibility control without changing the root graph:
+
+```sh
+mojo/examples/ios/rules_apple_trial/run_isolated_compatibility_control.sh
+```
+
+It copies this nested module to a caller-selected temporary output directory,
+removes only the copied lockfile, substitutes the two versions in only the
+copy, and queries, analyzes, and builds the UIKit Simulator `.ipa`. It reports
+`PASS` only after the copied workspace contains that IPA. The script explicitly
+records that `rules_swift` 3.5.0 requires `protobuf` 34.0.bcr.1 while the root
+currently selects 33.5; it does not establish that a direct-root upgrade is
+safe, and it does not link Mojo, sign/install, or execute an app.

@@ -13,7 +13,8 @@ def _mojo_ios_static_library_impl(ctx):
     object_file = ctx.actions.declare_file(ctx.label.name + ".o")
     archive = ctx.actions.declare_file("lib" + ctx.label.name + ".a")
     header = ctx.actions.declare_file(ctx.label.name + ".h")
-    mojo = ctx.executable._mojo
+    mojo_toolchain = ctx.toolchains["@rules_mojo//:toolchain_type"].mojo_toolchain_info
+    mojo = mojo_toolchain.mojo
 
     command = """
 set -euo pipefail
@@ -51,8 +52,9 @@ nm -gU "${{object_file}}" | grep -Eq '(_?mojo_hello_utf8)$'
     ctx.actions.run_shell(
         inputs = [ctx.file.src, ctx.file.header],
         outputs = [object_file, archive, header],
-        tools = [mojo],
+        tools = mojo_toolchain.all_tools,
         command = command,
+        env = getattr(ctx.toolchains["@rules_mojo//:toolchain_type"], "build_env", {}),
         mnemonic = "MojoIOSStaticLibrary",
         progress_message = "Building runtime-free Mojo iOS static library %{label}",
     )
@@ -71,11 +73,7 @@ mojo_ios_static_library = rule(
         "src": attr.label(allow_single_file = [".mojo"], mandatory = True),
         "header": attr.label(allow_single_file = [".h"], mandatory = True),
         "target_triple": attr.string(default = "arm64-apple-ios17.0-simulator"),
-        "_mojo": attr.label(
-            default = Label("//KGEN:mojo"),
-            executable = True,
-            cfg = "exec",
-        ),
     },
+    toolchains = ["@rules_mojo//:toolchain_type"],
     doc = "Builds only the runtime-free C ABI fixture as an iOS Simulator archive.",
 )
