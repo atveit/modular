@@ -176,8 +176,12 @@ Error, environment, or file paths. N4 covers formatting/output, collections,
 clock, errno/Error, paths, restricted environment, nested sandbox directories,
 and ordinary files; all 38 top-level packages also have compile-only import
 coverage and process spawning has an explicit iOS compile-time diagnostic.
-D6 remains incomplete on ABI/dead-strip hardening and canonical packaging—not
-on AsyncRT. Repeated public runtime initialization and threading are later
-AsyncRT gates. Both tracks must preserve the existing macOS/Linux
+D6 now also has an N5 dead-stripped C-ABI stress gate covering caller buffers,
+opaque handles with explicit destroy, caught Error-to-status conversion,
+10,000 repeated allocating calls, clean exit, and explicit rejection of a
+force-loaded duplicate core archive. This is not a sanitizer-backed leak/race
+claim. D6 remains incomplete on canonical packaging—not on AsyncRT. Repeated
+public runtime initialization and threading are later AsyncRT gates. Both
+tracks must preserve the existing macOS/Linux
 `CompilerRT` target and make unsupported runtime features fail clearly rather
 than silently loading the desktop shared library.

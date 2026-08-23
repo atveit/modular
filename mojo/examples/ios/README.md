@@ -630,6 +630,30 @@ operations inside the application sandbox; it does not claim arbitrary path
 access, concurrent I/O, `initialize_runtime`, AsyncRT, or physical-device
 execution.
 
+## Serial core C-ABI stress
+
+`run_compilerrt_ios_core_abi_stress.sh` is the N5 boundary gate. It links the
+runtime-free scalar/caller-buffer exports, an allocating `String` export, and a
+handwritten opaque-handle/Error-status API against exactly one serial core
+archive. The final device and Simulator binaries use `-dead_strip`; the gate
+requires used exports to remain and an unused sentinel to disappear. A
+negative link test copies and force-loads the core archive twice and requires
+an explicit duplicate-symbol failure.
+
+```sh
+RUN_SIMULATOR=1 MOJO_IOS_CORE_ABI_STRESS_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_core_abi_stress.sh
+```
+
+The Simulator consumer performs 10,000 iterations of scalar calls,
+caller-owned UTF-8 buffers, opaque handle create/read/destroy, caught
+Error-to-status conversion, and allocating String construction, then exits
+cleanly. The device result is compile/link/metadata evidence only. The opaque
+type in `mojo_ios_core_abi_probe.h` prevents native code from depending on the
+Mojo allocation layout. This is deterministic ownership and integration
+stress; it is not a sanitizer-backed no-leak/no-race claim and does not cover
+AsyncRT, threading, or physical-device execution.
+
 The current `initialize_runtime`/AsyncRT boundary has a checked-in discovery
 gate:
 

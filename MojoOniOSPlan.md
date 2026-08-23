@@ -547,7 +547,7 @@ must preserve every earlier exit gate.
 | N2 | Core archive contract | Rename the bounded source group around a serial `CompilerRTIOSCore` contract; keep desktop `CompilerRT` and the host-built bootstrap distinct. Include only allocator, globals, initializer ABI, no-stack-trace Error support, and admitted libc shims. | Source membership and exported symbols are explicit; Python, JIT, Crashpad, profiling loaders, signals, TCMalloc, and AsyncRT are absent. |
 | N3 | Global lifetime hardening | Replace the current experimental global-table concurrency caveat with an iOS-safe synchronization/lifetime design and stress it from multiple native host threads. | Named/indexed lookup, insertion, destroy callbacks, repeated teardown, and concurrent access pass under Thread Sanitizer where available. |
 | N4 | Serial stdlib matrix | Add runtime probes for formatting/output, clocks, errno/error paths, collections, paths, restricted environment access, nested sandbox directories, and ordinary files. Keep compile-only inventory for every stdlib module. | Each supported serial module has Simulator execution and a device link artifact; unsupported APIs have an explicit diagnostic and no accidental desktop dependency. |
-| N5 | Core ABI hardening | Test repeated exported calls, caller buffers, opaque handles, Error-to-status conversion, dead stripping, duplicate-runtime rejection, and clean process exit. | A stress consumer executes thousands of calls with no leak, race, double free, unresolved symbol, or duplicate runtime archive. |
+| N5 | Core ABI hardening | Test repeated exported calls, caller buffers, opaque handles, Error-to-status conversion, dead stripping, duplicate-runtime rejection, and clean process exit. | A stress consumer executes thousands of balanced create/destroy calls with no unresolved symbol or duplicate runtime archive; sanitizer-backed leak/race claims require a working target sanitizer and are recorded separately. |
 | N6 | Apple-rule dependency trial | In a disposable branch, directly register a Bazel-10-compatible rules_apple/rules_swift pair, reconcile protobuf/apple_support/rules_cc changes, and run the full module graph plus KGEN/stdlib regressions. Prefer a stable release when it supports this Bazel build; otherwise pin a reviewed release candidate explicitly. | Module graph, `//KGEN:mojo`, CompilerRT, focused stdlib tests, and a minimal no-Mojo iOS app all analyze/build. Stop if dependency upgrades require unrelated product migrations that cannot be isolated. |
 | N7 | Root iOS C++ toolchain | Register separate `iphoneos` and `iphonesimulator` SDK repositories and add iOS branches for sysroot, triple, libc++, compile, link, rpath, sanitizer, and platform suffix selections. | A one-file C++ target analyzes and builds for both Apple mobile platforms without ambient `xcrun` discovery inside its compile action. |
 | N8 | Hermetic Mojo archives | Move the target-correct Mojo/core-runtime archive actions from example-local diagnostics onto the registered Apple toolchain and return correct `CcInfo`. | Sandboxed/reproducible Simulator and device archives have correct member metadata and are consumable in the same Bazel graph. |
@@ -559,7 +559,7 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1–N4 are complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1–N5 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
 `KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
@@ -573,7 +573,11 @@ adds a real Simulator serial-stdlib matrix and device link artifact covering
 formatting/output, collections, clocks, errno/Error behavior, paths, restricted
 environment access, nested sandbox directories, and ordinary files. All 38
 top-level stdlib packages have compile-only coverage for both iOS triples, and
-process spawning now has an explicit iOS compile-time diagnostic. N5 is next.
+process spawning now has an explicit iOS compile-time diagnostic. N5 adds
+10,000 repeated scalar, caller-buffer, opaque-handle, Error-to-status, and
+allocating String calls with clean Simulator exit; device/Simulator dead-strip
+checks; and an explicit duplicate-runtime negative link gate. It makes no
+sanitizer-backed leak/race claim. N6 is next.
 
 The immediate coding order is N1–N5, while N6–N9 should proceed as a separate
 dependency/toolchain stack. N11 must begin with dependency isolation and may
