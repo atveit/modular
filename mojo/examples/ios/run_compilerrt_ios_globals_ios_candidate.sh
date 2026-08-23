@@ -76,5 +76,5 @@ xcrun simctl bootstatus "${device_udid}" -b
 xcrun simctl install "${device_udid}" "${app_path}"
 xcrun simctl launch --console "${device_udid}" "${app_id}" | tee "${output_root}/launch.log"
 grep -qx 'MOJO_COMPILERRT_GLOBALS_IOS_CANDIDATE_PASS' "${output_root}/launch.log" || fail "missing lifecycle marker"
-log "PASS: Simulator named/indexed global lifecycle candidate completed"
-log "Not a replacement for desktop Globals.cpp; no AsyncRT or concurrent-destroy claim."
+log "PASS: Simulator synchronized named/indexed global stress completed"
+log "The iOS core is mutex-based, not lock-free; no AsyncRT or contention-performance claim."

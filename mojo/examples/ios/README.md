@@ -513,18 +513,24 @@ blocker.
 
 `GlobalsIOS.cpp` is a separate candidate implementation of the exported
 global-entry ABI. It uses `llvm::StringRef` headers for the exact named-call
-signature, but only libc++ `unordered_map`/`mutex`/`vector` primitives at link
-time. The opt-in Simulator fixture verifies named lookup, insertion, indexed
-lookup, destruction callbacks, and idempotent teardown:
+signature, but only libc++ containers and one recursive mutex at link time.
+Creation, lookup, insertion, and teardown are mutually exclusive; callbacks
+during teardown cannot publish a new global. The opt-in Simulator fixture runs
+64 teardown/recreation rounds with eight native threads and 200 lookups per
+thread, verifying one initialization/destruction per named and indexed global:
 
 ```sh
 RUN_SIMULATOR=1 MOJO_IOS_GLOBALS_IOS_CANDIDATE_OUT="$(mktemp -d)" \
   mojo/examples/ios/run_compilerrt_ios_globals_ios_candidate.sh
 ```
 
-This candidate is not a replacement for desktop `Globals.cpp`: it does not
-claim the lock-free table's contention, allocation, or concurrent-destruction
-semantics, and it does not include AsyncRT.
+This is intentionally not the desktop lock-free algorithm and makes no
+contention-performance claim. Callers must still stop using a returned raw
+pointer before process-lifetime teardown begins. A host Thread Sanitizer
+control was attempted on the current macOS/Xcode toolchain, but its runtime
+exited before the test body; the Simulator native-thread stress is the accepted
+N3 race/lifetime gate on this machine. The implementation does not include
+AsyncRT.
 
 `run_compilerrt_ios_globals_mojo_probe.sh` closes the next narrow gate: it
 emits the checked-in `std.ffi._Global` Mojo export, links it against the

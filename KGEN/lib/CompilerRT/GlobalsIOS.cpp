@@ -4,15 +4,15 @@
 // This is intentionally separate from Globals.cpp. It preserves the exported
 // entry points and their basic named/indexed lifecycle semantics without the
 // desktop GlobalTable or LLVM Support library. It is not a replacement for the
-// desktop lock-free implementation: concurrent destruction and its allocation/
-// contention characteristics have not been established for this candidate.
+// desktop lock-free implementation. The serial iOS core instead uses one
+// recursive mutex so creation, lookup, insertion, and process-lifetime teardown
+// have a simple race-free contract. Performance remains a later measurement.
 //===----------------------------------------------------------------------===//
 
 #include "Support/SymbolExport.h"
 #include "llvm/ADT/StringRef.h"
 
 #include <array>
-#include <atomic>
 #include <cassert>
 #include <cstddef>
 #include <mutex>
@@ -28,9 +28,14 @@ struct NamedEntry {
   void (*destroyFn)(void *);
 };
 
-std::mutex &namedMutex() {
-  static std::mutex mutex;
+std::recursive_mutex &globalMutex() {
+  static std::recursive_mutex mutex;
   return mutex;
+}
+
+bool &isDestroyingGlobals() {
+  static bool destroying = false;
+  return destroying;
 }
 
 std::unordered_map<std::string, NamedEntry> &namedEntries() {
@@ -43,11 +48,11 @@ std::vector<std::string> &namedDestructionOrder() {
   return order;
 }
 
-thread_local void *insertValue = nullptr;
-
 void *getOrCreateNamed(llvm::StringRef name, void *(*initFn)(),
                        void (*destroyFn)(void *)) {
-  std::lock_guard<std::mutex> lock(namedMutex());
+  std::lock_guard<std::recursive_mutex> lock(globalMutex());
+  if (isDestroyingGlobals())
+    return nullptr;
   std::string key(name.data(), name.size());
   auto &entries = namedEntries();
   if (auto existing = entries.find(key); existing != entries.end())
@@ -63,13 +68,12 @@ void *getOrCreateNamed(llvm::StringRef name, void *(*initFn)(),
 }
 
 struct IndexedEntry {
-  std::atomic<void *> value{nullptr};
-  std::atomic<void (*)(void *)> destroyFn{nullptr};
+  void *value = nullptr;
+  void (*destroyFn)(void *) = nullptr;
 
   void destroy() {
-    void *oldValue = value.exchange(nullptr, std::memory_order_acq_rel);
-    void (*oldDestroy)(void *) =
-        destroyFn.exchange(nullptr, std::memory_order_acq_rel);
+    void *oldValue = std::exchange(value, nullptr);
+    void (*oldDestroy)(void *) = std::exchange(destroyFn, nullptr);
     if (oldValue && oldDestroy)
       oldDestroy(oldValue);
   }
@@ -93,47 +97,54 @@ KGEN_CompilerRT_GetGlobalOrNull(llvm::StringRef name) {
 
 COMPILERRT_EXPORT COMPILERRT_VISIBILITY_EXPORT void
 KGEN_CompilerRT_InsertGlobal(llvm::StringRef name, void *value) {
-  insertValue = value;
-  (void)getOrCreateNamed(name, [] { return insertValue; }, nullptr);
+  std::lock_guard<std::recursive_mutex> lock(globalMutex());
+  if (isDestroyingGlobals())
+    return;
+  std::string key(name.data(), name.size());
+  auto [unused, inserted] =
+      namedEntries().emplace(key, NamedEntry{value, nullptr});
+  (void)unused;
+  if (inserted)
+    namedDestructionOrder().push_back(std::move(key));
 }
 
 COMPILERRT_EXPORT COMPILERRT_VISIBILITY_EXPORT void *
 KGEN_CompilerRT_GetOrCreateGlobalIndexed(size_t index, void *(*initFn)(),
                                          void (*destroyFn)(void *)) {
   assert(index < kNumIndexedGlobals && "Unsupported indexed global #");
+  std::lock_guard<std::recursive_mutex> lock(globalMutex());
+  if (isDestroyingGlobals())
+    return nullptr;
   IndexedEntry &entry = indexedEntries[index];
-  if (void *existing = entry.value.load(std::memory_order_acquire))
-    return existing;
+  if (entry.value)
+    return entry.value;
   if (!initFn)
     return nullptr;
   void *created = initFn();
   if (!created)
     return nullptr;
-  void *expected = nullptr;
-  if (!entry.value.compare_exchange_strong(expected, created,
-                                            std::memory_order_acq_rel)) {
-    if (destroyFn)
-      destroyFn(created);
-    return expected;
-  }
-  entry.destroyFn.store(destroyFn, std::memory_order_release);
+  entry.value = created;
+  entry.destroyFn = destroyFn;
   return created;
 }
 
 COMPILERRT_EXPORT COMPILERRT_VISIBILITY_EXPORT void
 KGEN_CompilerRT_DestroyGlobals() {
-  std::unordered_map<std::string, NamedEntry> entries;
-  std::vector<std::string> order;
-  {
-    std::lock_guard<std::mutex> lock(namedMutex());
-    entries.swap(namedEntries());
-    order.swap(namedDestructionOrder());
-  }
+  std::lock_guard<std::recursive_mutex> lock(globalMutex());
+  if (isDestroyingGlobals())
+    return;
+  isDestroyingGlobals() = true;
+  auto &entries = namedEntries();
+  auto &order = namedDestructionOrder();
   for (auto it = order.rbegin(); it != order.rend(); ++it) {
     auto entry = entries.find(*it);
-    if (entry != entries.end() && entry->second.value && entry->second.destroyFn)
+    if (entry != entries.end() && entry->second.value &&
+        entry->second.destroyFn)
       entry->second.destroyFn(entry->second.value);
   }
+  entries.clear();
+  order.clear();
   for (IndexedEntry &entry : indexedEntries)
     entry.destroy();
+  isDestroyingGlobals() = false;
 }

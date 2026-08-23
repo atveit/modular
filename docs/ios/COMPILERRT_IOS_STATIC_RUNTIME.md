@@ -55,7 +55,7 @@ keeps its source and dependency policy reviewable:
 | Component | Initial status | Reason |
 |---|---|---|
 | `Initialize.cpp` | Include | Idempotent runtime registration symbol |
-| `Globals.cpp` | Replace in the bounded core seed | `GlobalsIOS.cpp` supplies the required named/indexed ABI without desktop `GlobalTable`; contention and concurrent teardown remain under review |
+| `Globals.cpp` | Replaced in the serial core | `GlobalsIOS.cpp` supplies the named/indexed ABI with one recursive mutex covering creation, lookup, insertion, and teardown; it passes a multithreaded Simulator stress gate but intentionally makes no lock-free/contention-performance claim |
 | `Memory.cpp` | Replaced for first probe | `MemoryIOS.cpp` provides only `posix_memalign`/`free` entry points; the desktop TCMalloc implementation remains out of the iOS target |
 | `Support.cpp` | Defer from the bounded core seed | The existing bootstrap probe compiles its bfloat helpers, but current emitted global/Error probes do not require them |
 | `StackTraceIOS.cpp` | Include in bounded core seed | Implements the Error ABI's explicit “stack trace unavailable” path without desktop signal/configuration support |
