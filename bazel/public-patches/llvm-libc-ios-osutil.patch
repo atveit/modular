@@ -1,0 +1,22 @@
+diff --git a/utils/bazel/llvm-project-overlay/libc/BUILD.bazel b/utils/bazel/llvm-project-overlay/libc/BUILD.bazel
+index 4aa1d72d2575..70fb0f86772e 100644
+--- a/utils/bazel/llvm-project-overlay/libc/BUILD.bazel
++++ b/utils/bazel/llvm-project-overlay/libc/BUILD.bazel
+@@ -2762,6 +2762,10 @@ libc_support_library(
+             "src/__support/OSUtil/linux/x86_64/syscall.h",
+         ],
++        "@platforms//os:ios": [
++            "src/__support/OSUtil/darwin/syscall.h",
++            "src/__support/OSUtil/darwin/aarch64/syscall.h",
++        ],
+         "@platforms//os:macos": [
+             "src/__support/OSUtil/darwin/syscall.h",
+             "src/__support/OSUtil/darwin/aarch64/syscall.h",
+@@ -3269,6 +3269,7 @@ libc_support_library(
+     hdrs = ["src/__support/OSUtil/io.h"],
+     textual_hdrs = select({
+         "@platforms//os:linux": ["src/__support/OSUtil/linux/io.h"],
++        "@platforms//os:ios": ["src/__support/OSUtil/darwin/io.h"],
+         "@platforms//os:macos": ["src/__support/OSUtil/darwin/io.h"],
+         "@platforms//os:windows": ["src/__support/OSUtil/windows/io.h"],
+     }),

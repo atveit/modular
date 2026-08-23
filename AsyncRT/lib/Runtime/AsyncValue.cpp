@@ -16,7 +16,11 @@
 #include "AsyncRT/Support/Chain.h"
 #include "Support/ADT/ConcurrentAppendingVector.h"
 #include "Support/Threading/SpinWaiter.h"
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 #include "llvm/Support/Format.h"
+#endif
+
+#include <cstdlib>
 
 using namespace M::AsyncRT;
 
@@ -34,8 +38,12 @@ Detail::SomeConcreteAsyncValue::~SomeConcreteAsyncValue() {
   } else {
     // TODO: If unconstructed this will leak the waiters list.  We should signal
     // this as an error (checking for resurrection) etc.
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+    std::abort();
+#else
     llvm::report_fatal_error(
         "destroying a non-available AsyncValue isn't implemented");
+#endif
   }
 }
 
@@ -549,6 +557,7 @@ AsyncValue *AsyncValue::createIndirect(CompactCPUDevicePtr cpuDevice) {
   return new Detail::IndirectAsyncValue(cpuDevice);
 }
 
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 static llvm::StringRef subclassToString(AsyncValue::SubclassKind kind) {
   switch (kind) {
   case AsyncValue::SubclassKind::kConcrete:
@@ -581,6 +590,8 @@ static llvm::StringRef stateToString(AsyncValue::State state) {
   llvm::llvm_unreachable_internal("missing case");
 }
 
+#endif // !MODULAR_ASYNCRT_IOS_SINGLE_THREAD
+
 bool AsyncValue::isUniqueSlow() const {
   assert(getSubclassKind() == SubclassKind::kIndirect);
   assert(isReady(getState()) && "can only check for uniqueness of indirect "
@@ -590,6 +601,7 @@ bool AsyncValue::isUniqueSlow() const {
       ->isUnique();
 }
 
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 /// CAUTION: Not thread safe!
 void AsyncValue::printDebug(raw_ostream &os) const {
   os << "AsyncValue(";
@@ -612,3 +624,4 @@ void AsyncValue::printDebug(raw_ostream &os) const {
 
   os << ")";
 }
+#endif // MODULAR_ASYNCRT_IOS_SINGLE_THREAD

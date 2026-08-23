@@ -20,8 +20,15 @@
 
 #include "Support/ForwardDecls.h"
 #include "Support/LLVMForwardDecls.h"
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+#include "Support/LogicalResultIOS.h"
+namespace llvm {
+class Twine;
+}
+#else
 #include "Support/LogicalResult.h"
 #include "llvm/ADT/Twine.h"
+#endif
 
 #include <cassert>
 #include <cstdint>
@@ -31,6 +38,10 @@
 #include <utility>
 
 namespace M {
+
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+using llvm::Twine;
+#endif
 
 /// This is a lightweight error class that holds a nul-terminated string, with a
 /// static string optimization that does not allocate.  This is not implicitly
@@ -139,11 +150,13 @@ private:
 bool operator==(const Error &, const Error &);
 inline bool operator!=(const Error &a, const Error &b) { return !(a == b); }
 
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 /// Convert an LLVM error (which must be in error state) to a Modular error.
 /// Note that while llvm::Error has a "success"/"no-error" state, M::Error does
 /// not.  If you are unsure whether or not the llvm::Error is in error state,
 /// use toModularErrorOr to get an M::ErrorOrSuccess instead.
 Error toModularError(llvm::Error llvmError);
+#endif
 
 } // namespace M
 

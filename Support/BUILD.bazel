@@ -43,6 +43,45 @@ modular_cc_library(
     ],
 )
 
+# Static runtime-only Support slice for the N11/N12 iOS AsyncRT profile. Avoid
+# the general Base/Globals/MLIR graph and desktop profiler implementation.
+modular_cc_library(
+    name = "AsyncRTRuntimeIOS",
+    features = ["-parse_headers"],
+    local_defines = ["MODULAR_ASYNCRT_IOS_SINGLE_THREAD=1"],
+    srcs = [
+        "lib/AlignedAllocIOS.cpp",
+        "lib/ErrorIOS.cpp",
+        "lib/Globals/TypeIDGlobalsIOS.cpp",
+        "lib/ReferenceCounted.cpp",
+        "lib/Threading/SpinWaiter.cpp",
+        "lib/TypeIDIOS.cpp",
+    ],
+    hdrs = [
+        "include/Support/ADT/ConcurrentAppendingVector.h",
+        "include/Support/AlignedAlloc.h",
+        "include/Support/Error.h",
+        "include/Support/ErrorOr.h",
+        "include/Support/ForwardDecls.h",
+        "include/Support/Globals/Globals.h",
+        "include/Support/LLVMForwardDecls.h",
+        "include/Support/LLVMForwardDeclsIOS.h",
+        "include/Support/LogicalResultIOS.h",
+        "include/Support/PlatformUtils.h",
+        "include/Support/Profiling/TimeProfilerDisabled.h",
+        "include/Support/RCRef.h",
+        "include/Support/ReferenceCounted.h",
+        "include/Support/STLExtras.h",
+        "include/Support/SymbolExport.h",
+        "include/Support/Threading/Atomics.h",
+        "include/Support/Threading/HWInfo.h",
+        "include/Support/Threading/HWInfoIOS.h",
+        "include/Support/Threading/SpinWaiter.h",
+        "include/Support/TypeID.h",
+    ],
+    deps = ["@llvm-project//llvm:IOSRuntimeHeaders"],
+)
+
 modular_cc_library(
     name = "ConcurrentAppendingVector",
     hdrs = ["include/Support/ADT/ConcurrentAppendingVector.h"],
@@ -93,6 +132,7 @@ modular_cc_library(
         "STATIC_LIBRARY_SUFFIX='\".a\"'",
     ] + select({
         "@platforms//os:macos": ["SHARED_LIBRARY_SUFFIX='\".dylib\"'"],
+        "@platforms//os:ios": ["SHARED_LIBRARY_SUFFIX='\".dylib\"'"],
         "@platforms//os:linux": ["SHARED_LIBRARY_SUFFIX='\".so\"'"],
     }),
     deps = [
@@ -1081,7 +1121,10 @@ td_library(
 
 modular_shared_library(
     name = "Globals",
-    srcs = glob(["lib/Globals/*.cpp"]),
+    srcs = glob(
+        ["lib/Globals/*.cpp"],
+        exclude = ["lib/Globals/TypeIDGlobalsIOS.cpp"],
+    ),
     hdrs = glob(["include/Support/Globals/*.h"]) + [
         "include/Support/ContextGlobal.h",
     ],
@@ -1096,6 +1139,9 @@ modular_shared_library(
             "-Wl,--undefined=_ZN4mlir6detail22FallbackTypeIDResolver22registerImplicitTypeIDEN4llvm9StringRefE",
         ],
         "@platforms//os:macos": [
+            "-Wl,-u,__ZN4mlir6detail22FallbackTypeIDResolver22registerImplicitTypeIDEN4llvm9StringRefE",
+        ],
+        "@platforms//os:ios": [
             "-Wl,-u,__ZN4mlir6detail22FallbackTypeIDResolver22registerImplicitTypeIDEN4llvm9StringRefE",
         ],
     }),

@@ -1076,6 +1076,21 @@ filegroup(
     visibility = ["//mojo/examples/ios:__pkg__"],
 )
 
+modular_cc_library(
+    name = "CompilerRTIOSAsyncRTSingleThread",
+    features = ["-parse_headers"],
+    srcs = ["lib/CompilerRT/AsyncRT.cpp"],
+    local_defines = [
+        "MODULAR_ASYNCRT_DISABLE_PROFILING=1",
+        "MODULAR_ASYNCRT_IOS_SINGLE_THREAD=1",
+    ],
+    visibility = ["//mojo/examples/ios:__subpackages__"],
+    deps = [
+        "//AsyncRT:RuntimeIOSSingleThread",
+        "//Support:SymbolExport",
+    ],
+)
+
 # Compatibility alias while existing downstream diagnostics migrate to the
 # serial-core contract name.
 alias(

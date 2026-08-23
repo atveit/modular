@@ -1,6 +1,9 @@
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "llvm-ios-config.patch",
+    "llvm-ios-runtime-headers.patch",
+    "llvm-libc-ios-osutil.patch",
     "rules_apple-cc-linkstamps.patch",
     "torch-cuda-deps.patch",
 ])

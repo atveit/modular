@@ -10,6 +10,15 @@ LLVM_SHA = "9bce3a316440548ef4b75c5a75b935ee9caaf9de3db38499b38fbb25e0361c10"
 # END_GENERATED
 
 PATCHES = [
+    # Keep the iOS runtime on an explicit header-only LLVM ADT surface rather
+    # than pulling LLVM Support's crash/JIT/plugin/process sources.
+    "//bazel/public-patches:llvm-ios-runtime-headers.patch",
+    # Configure target-built LLVM support code for AOT iOS rather than falling
+    # through to Linux or inheriting desktop Darwin plugin facilities.
+    "//bazel/public-patches:llvm-ios-config.patch",
+    # LLVM libc's OSUtil overlay classifies Darwin only as macOS. iOS uses the
+    # same public Darwin I/O support header.
+    "//bazel/public-patches:llvm-libc-ios-osutil.patch",
     "//bazel/public-patches:llvm-lldb-exports.patch",
     # https://github.com/llvm/llvm-project/pull/153352
     # https://linear.app/modularml/issue/MOCO-2322/llvm-upstream-change-conflicting-with-internal-code-that-addresses

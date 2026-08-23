@@ -555,13 +555,13 @@ must preserve every earlier exit gate.
 | N8 | Hermetic Mojo archives | Move the target-correct Mojo/core-runtime archive actions from example-local diagnostics onto the registered Apple toolchain and return correct `CcInfo`. | Sandboxed/reproducible Simulator and device archives have correct member metadata and are consumable in the same Bazel graph. |
 | N9 | Canonical Bazel app | Instantiate `swift_library`, `ios_application`, XCTest, and UI-test targets around the runtime-free tracer, then the serial core runtime. | One Bazel command builds, installs, launches, checks both C exports, and asserts the visible greeting/calculation in an arm64 Simulator. |
 | N10 | Clean package consumer | Package serial core device/Simulator slices as an XCFramework plus local Swift Package and validate from a clean app checkout. | The app runs in Simulator with no Mojo compiler or Modular install and with exactly one compatible core runtime per final binary. |
-| N11 | AsyncRT target graph | Define the smallest behavior-preserving iOS AsyncRT source/dependency graph. Remove or parameterize desktop-only configuration, profiling, signal, and target-LLVM assumptions; select a malloc-backed allocator explicitly. | Every source compiles for both iOS SDKs and the graph contains no TCMalloc, compiler/JIT, private API, or desktop fault-handler dependency. Do not add ABI stubs if this gate fails. |
+| N11 | AsyncRT target graph — complete | Define the smallest behavior-preserving iOS AsyncRT source/dependency graph. Remove or parameterize desktop-only configuration, profiling, signal, and target-LLVM assumptions; select a malloc-backed allocator explicitly. | Every source compiles for both iOS SDKs and the graph contains no TCMalloc, compiler/JIT, private API, or desktop fault-handler dependency. No ABI stubs were added. |
 | N12 | Runtime initialization correctness | Link the real three AsyncRT CPU-device symbols, call public `initialize_runtime()` twice, query parallelism, and exercise a minimal task/chain lifecycle. A documented single-thread profile may be used only as a clearly temporary correctness stage. | Simulator launch passes initialization, idempotence, task completion, and teardown-by-process with no ABI carrier approximation. |
 | N13 | Real worker pool | Enable the reviewed iOS worker queue, bound thread counts for mobile hardware, validate foreground/background and memory-pressure behavior, and add parallel map/reduce correctness. | Useful multicore scaling appears above documented thresholds without hangs, oversubscription, lifecycle violations, or unexplained energy cost. |
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1–N10 are complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1–N11 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
 `KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
@@ -627,9 +627,18 @@ and calculation. The consumer build needs Xcode command-line tools, but it does
 not invoke Bazel or Mojo and does not require a Modular installation. Generated
 XCFrameworks remain untracked build artifacts.
 
-The immediate coding order is now N11, followed by N12. N11
-must begin with dependency isolation, but N12 cannot be declared complete until
-the real public `OptionalPointer` ABI and CPU-device semantics execute. Physical
+N11 adds a real, temporary single-thread AsyncRT profile rather than ABI stubs.
+Its explicit source graph contains production AsyncValue, CPUDevice,
+task/chain, timer, and serial-work-queue logic plus iOS-specific host-system,
+global, malloc, TypeID, and error support. A header-only LLVM ADT target avoids
+linking LLVM Support. Both iOS platforms build 1 CompilerRT, 10 AsyncRT, and 6
+Support archive members with minimum iOS 17 metadata. The permanent gate finds
+no path to MLIR, LLVM Support, TCMalloc, compiler/JIT, signal, plugin, Crashpad,
+or profiler implementations. This is compile/archive evidence only.
+
+The immediate coding order is now N12, followed by N13. N12 cannot be declared
+complete until the real public `OptionalPointer` ABI, repeated public runtime
+initialization, and CPU-device/task semantics execute in Simulator. Physical
 device work is still valuable but is not a prerequisite for N1–N13.
 
 ## Phased Implementation Roadmap

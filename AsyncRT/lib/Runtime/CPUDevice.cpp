@@ -109,9 +109,15 @@ CPUDevice::CPUDevice(CompactCPUDevicePtr cpuDevicePtr,
 
   // NOTE: Users can't pass in profileFilename AND activate the time
   // profiler in the caller.
+#if !defined(MODULAR_ASYNCRT_DISABLE_PROFILING)
   if (!profileFilename.empty())
     profiler.emplace(/*timeTraceGranularity=*/0, "Main", profileFilename,
                      runtimeProfilingTypeMask);
+#else
+  assert(profileFilename.empty() && "profiling is unavailable in this build");
+  (void)runtimeProfilingTypeMask;
+  (void)profilerDebuginfo;
+#endif
 }
 
 CPUDevice::~CPUDevice() {
@@ -135,10 +141,12 @@ CPUDevice::~CPUDevice() {
   clearGlobalCPUDevicePointerIfEquals(this);
 
   // We're done with profiling.
+#if !defined(MODULAR_ASYNCRT_DISABLE_PROFILING)
   if (profiler) {
     if (auto e = profiler->write("-"))
       llvm::report_fatal_error("unable to write time trace profile");
   }
+#endif
 }
 
 ErrorOr<CPUDevice *> CPUDevice::getNumaDevice(int numaNode) const {
@@ -154,6 +162,12 @@ ErrorOr<CPUDevice *> CPUDevice::getNumaDevice(int numaNode) const {
 
 std::unique_ptr<Allocator>
 AsyncRT::getAllocator(const AllocatorOptions &options) {
+#if defined(MODULAR_ASYNCRT_MALLOC_ONLY)
+  assert(!options.leakCheckedAllocator && !options.tcmallocAllocator &&
+         !options.profilingAllocator && !options.useAfterFreeAllocator &&
+         "this AsyncRT profile supports only malloc");
+  return createMallocAllocator();
+#else
   // Create base allocator: UseAfterFree, TCMalloc, or Malloc
   // These are mutually exclusive and must be enabled at compile time.
   std::unique_ptr<Allocator> allocator;
@@ -174,4 +188,5 @@ AsyncRT::getAllocator(const AllocatorOptions &options) {
   if (options.profilingAllocator)
     allocator = createProfilingAllocator(std::move(allocator));
   return allocator;
+#endif
 }

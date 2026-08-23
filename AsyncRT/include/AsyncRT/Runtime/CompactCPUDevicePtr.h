@@ -19,7 +19,11 @@
 #define ASYNCRT_RUNTIME_COMPACT_CPU_DEVICE_PTR_H
 
 #include "AsyncRT/Runtime/Globals/Globals.h"
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+#include <vector>
+#else
 #include "llvm/ADT/SmallVector.h"
+#endif
 
 #include <cassert>
 #include <cstdint>
@@ -68,7 +72,11 @@ private:
 
   /// Protects mutation to both of the following fields.
   mutable std::mutex mu;
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+  std::vector<uint8_t> freeIndices;
+#else
   llvm::SmallVector<uint8_t, 256> freeIndices;
+#endif
   CPUDevice *allCPUDevices[kInvalidIndex];
 };
 

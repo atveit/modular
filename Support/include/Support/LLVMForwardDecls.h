@@ -25,6 +25,12 @@
 #ifndef SUPPORT_LLVM_FORWARD_DECLS_H
 #define SUPPORT_LLVM_FORWARD_DECLS_H
 
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+
+#include "Support/LLVMForwardDeclsIOS.h"
+
+#else
+
 // MLIR includes a lot of forward declarations of LLVM types, use them.
 #include "mlir/Support/LLVM.h"
 
@@ -94,5 +100,7 @@ using mlir::Twine;
 using mlir::TypeSwitch;
 
 } // namespace M
+
+#endif // MODULAR_ASYNCRT_IOS_SINGLE_THREAD
 
 #endif // SUPPORT_LLVM_FORWARD_DECLS_H

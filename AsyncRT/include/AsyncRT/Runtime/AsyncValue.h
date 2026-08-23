@@ -24,7 +24,7 @@
 #include "AsyncRT/Runtime/WorkQueue.h"
 #include "AsyncRT/Support/Diagnostic.h"
 #include "Support/AlignedAlloc.h"
-#include "Support/Profiling/TimeProfiler.h"
+#include "AsyncRT/Runtime/Profiling.h"
 #include "Support/TypeID.h"
 #include "llvm/ADT/FunctionExtras.h"
 #include "llvm/ADT/PointerIntPair.h"

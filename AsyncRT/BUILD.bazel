@@ -67,7 +67,14 @@ modular_cc_library(
 
 modular_cc_library(
     name = "Runtime",
-    srcs = glob(["lib/Runtime/*.cpp"]),
+    srcs = glob(
+        ["lib/Runtime/*.cpp"],
+        exclude = [
+            "lib/Runtime/CPUDeviceOptionsIOS.cpp",
+            "lib/Runtime/HostSystemIOS.cpp",
+            "lib/Runtime/MallocAllocatorIOS.cpp",
+        ],
+    ),
     hdrs = glob([
         "include/AsyncRT/Runtime/Globals/*.h",
         "include/AsyncRT/Runtime/*.h",
@@ -101,9 +108,55 @@ modular_cc_library(
     ],
 )
 
+# Real AsyncRT CPUDevice/AsyncValue support for the temporary N11/N12 iOS
+# correctness profile. It deliberately uses the serial work queue and malloc,
+# while N13 owns the bounded mobile worker pool. Keep this source graph free of
+# TCMalloc, NUMA, profiling implementations, and desktop runtime globals.
+modular_cc_library(
+    name = "RuntimeIOSSingleThread",
+    features = ["-parse_headers"],
+    srcs = [
+        "lib/Runtime/AsyncValue.cpp",
+        "lib/Runtime/CPUDevice.cpp",
+        "lib/Runtime/CPUDeviceOptionsIOS.cpp",
+        "lib/Runtime/CompactCPUDevicePtr.cpp",
+        "lib/Runtime/Globals/GlobalsIOS.cpp",
+        "lib/Runtime/Globals/RuntimeGlobal.cpp",
+        "lib/Runtime/HostSystemIOS.cpp",
+        "lib/Runtime/MallocAllocatorIOS.cpp",
+        "lib/Runtime/SingleThreadWorkQueue.cpp",
+        "lib/Runtime/TimerHeap.cpp",
+    ],
+    hdrs = glob([
+        "include/AsyncRT/Runtime/Globals/*.h",
+        "include/AsyncRT/Runtime/*.h",
+    ]) + [
+        "include/AsyncRT/ForwardDecls.h",
+        "include/AsyncRT/Support/Chain.h",
+        "include/AsyncRT/Support/ConcurrentQueue.h",
+        "include/AsyncRT/Support/Diagnostic.h",
+        "include/AsyncRT/Support/Location.h",
+    ],
+    includes = ["include"],
+    local_defines = [
+        "ASYNCRT_WORKER_STATS=0",
+        "MODULAR_ALLOC_LOGGING=0",
+        "MODULAR_ASYNCRT_DISABLE_PROFILING=1",
+        "MODULAR_ASYNCRT_IOS_SINGLE_THREAD=1",
+        "MODULAR_ASYNCRT_MALLOC_ONLY=1",
+    ],
+    deps = [
+        "//Support:AsyncRTRuntimeIOS",
+        "@llvm-project//llvm:IOSRuntimeHeaders",
+    ],
+)
+
 modular_shared_library(
     name = "RuntimeGlobals",
-    srcs = glob(["lib/Runtime/Globals/*.cpp"]),
+    srcs = glob(
+        ["lib/Runtime/Globals/*.cpp"],
+        exclude = ["lib/Runtime/Globals/GlobalsIOS.cpp"],
+    ),
     hdrs = glob([
         "include/AsyncRT/Runtime/Globals/*.h",
         "include/AsyncRT/Runtime/*.h",

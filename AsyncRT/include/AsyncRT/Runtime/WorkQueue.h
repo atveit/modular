@@ -21,11 +21,16 @@
 #define ASYNCRT_RUNTIME_WORKQUEUE_H
 
 #include "AsyncRT/ForwardDecls.h"
+#include "Support/ErrorOr.h"
 #include "AsyncRT/Runtime/CompactCPUDevicePtr.h"
 #include "Support/LLVMForwardDecls.h"
-#include "Support/Profiling/TimeProfiler.h"
+#include "AsyncRT/Runtime/Profiling.h"
 #include "Support/Threading/Atomics.h"
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+#include "Support/Threading/HWInfoIOS.h"
+#else
 #include "Support/Threading/HWInfo.h"
+#endif
 #include "llvm/ADT/FunctionExtras.h"
 #include "llvm/ADT/StringRef.h"
 

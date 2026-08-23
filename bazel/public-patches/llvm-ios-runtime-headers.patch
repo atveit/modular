@@ -1,0 +1,42 @@
+diff --git a/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel b/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
+index db2d2070dc85..1cb91813106f 100644
+--- a/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
++++ b/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
+@@ -393,4 +393,37 @@ filegroup(
+     }),
+ )
++
++# Header-only LLVM ADT surface for the AOT iOS AsyncRT. This deliberately does
++# not compile or link LLVM Support, crash handling, plugins, JIT facilities,
++# signal handlers, process launch, or profiling.
++cc_library(
++    name = "IOSRuntimeHeaders",
++    hdrs = glob(["include/llvm/ADT/*.h"]) + [
++        "include/llvm-c/DataTypes.h",
++        "include/llvm/Support/Alignment.h",
++        "include/llvm/Support/AllocatorBase.h",
++        "include/llvm/Support/AtomicOrdering.h",
++        "include/llvm/Support/Casting.h",
++        "include/llvm/Support/Compiler.h",
++        "include/llvm/Support/DataTypes.h",
++        "include/llvm/Support/Endian.h",
++        "include/llvm/Support/ErrorHandling.h",
++        "include/llvm/Support/Format.h",
++        "include/llvm/Support/LogicalResult.h",
++        "include/llvm/Support/MathExtras.h",
++        "include/llvm/Support/MemAlloc.h",
++        "include/llvm/Support/PointerLikeTypeTraits.h",
++        "include/llvm/Support/ReverseIteration.h",
++        "include/llvm/Support/SwapByteOrder.h",
++        "include/llvm/Support/TypeName.h",
++        "include/llvm/Support/raw_ostream.h",
++        "include/llvm/Support/type_traits.h",
++        "include/llvm/Support/xxhash.h",
++    ],
++    defines = ["LLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING=1"],
++    includes = ["include"],
++    deps = [":config"],
++)
++
+ cc_library(
+     name = "Support",

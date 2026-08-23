@@ -16,7 +16,9 @@
 
 #include "Support/SymbolExport.h"
 
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 #include "llvm/ADT/StringMap.h"
+#endif
 
 #include <atomic>
 #include <functional>
@@ -46,6 +48,8 @@ exchangeGlobalProfilerContext(M::ProfilingDetail::GlobalProfilerContext *ctx);
 
 extern MODULAR_CXX_EXPORT Detail::TypeInfoTable &
 getTypeInfoTableSingleton(const std::function<Detail::TypeInfoTable *()> &ctor);
+
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 
 // Process-wide storage for `Config::setGlobalValue()` overrides. These
 // live in `libMSupportGlobals.so` so that writes from one shared library
@@ -81,6 +85,8 @@ struct ProfilingRangeGlobals {
 };
 
 extern MODULAR_CXX_EXPORT ProfilingRangeGlobals &getProfilingRangeGlobals();
+
+#endif // MODULAR_ASYNCRT_IOS_SINGLE_THREAD
 
 } // namespace Globals
 

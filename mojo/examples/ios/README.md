@@ -696,8 +696,26 @@ Mojo allocation layout. This is deterministic ownership and integration
 stress; it is not a sanitizer-backed no-leak/no-race claim and does not cover
 AsyncRT, threading, or physical-device execution.
 
-The current `initialize_runtime`/AsyncRT boundary has a checked-in discovery
-gate:
+N11 now has a checked-in target-graph gate:
+
+```sh
+MOJO_IOS_BAZEL_JOBS=16 \
+  mojo/examples/ios/run_asyncrt_ios_target_graph.sh
+```
+
+It builds real `AsyncValue`, `CPUDevice`, task/chain, timer, and serial work-
+queue sources for both registered iOS platforms. The bounded profile uses
+system malloc, disables runtime profiling, excludes target command-line
+configuration, and archives an iOS-specific host-system/global/support slice.
+The gate checks every archive member's Mach-O platform and rejects dependency
+paths or unresolved symbol families for MLIR, LLVM Support, TCMalloc,
+compiler/JIT facilities, Crashpad, signals, plugins, and profilers. It passed
+for arm64 `IOSSIMULATOR` and `IOS`, minimum 17.0, with 1 CompilerRT, 10 AsyncRT,
+and 6 Support members respectively. This is compile/archive and dependency
+evidence only: N12 must still link the real ABI, call public
+`initialize_runtime()` twice, and execute task/chain lifecycle behavior.
+
+The older, direct-SDK discovery gate remains as historical blocker evidence:
 
 ```sh
 MOJO_IOS_ASYNCRT_COMPILE_BLOCKER_OUT="$(mktemp -d)" \
@@ -706,10 +724,9 @@ MOJO_IOS_ASYNCRT_COMPILE_BLOCKER_OUT="$(mktemp -d)" \
 
 It uses Xcode's Simulator clang and Bazel-materialized LLVM headers to compile
 only `KGEN/lib/CompilerRT/AsyncRT.cpp`, records the expected target-configured
-LLVM/MLIR header failure, and exits successfully as `BLOCKED`. It never creates
-an AsyncRT archive, links an app, or claims runtime support. The next gate is a
-target-configured iOS LLVM/MLIR toolchain contract plus an extracted CPU-device
-shim with explicitly reviewed allocator/work-queue semantics.
+LLVM/MLIR header failure from the pre-N11 graph, and exits successfully as
+`BLOCKED`. It is not the current acceptance gate and never creates an AsyncRT
+archive, links an app, or claims runtime support.
 
 ## SwiftUI adoption seam
 

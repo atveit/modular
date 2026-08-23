@@ -12,9 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "AsyncRT/Runtime/CompactCPUDevicePtr.h"
-#include "llvm/ADT/Twine.h"
-#include "llvm/Support/raw_os_ostream.h"
-
 #include <mutex>
 
 using namespace M;
@@ -40,7 +37,12 @@ CPUDevice *Detail::CPUDeviceTable::getCPUDevice(uint8_t index) const {
 uint8_t Detail::CPUDeviceTable::reserveIndex() {
   std::lock_guard<std::mutex> lock(mu);
   assert(!freeIndices.empty() && "too many CPUDevices are currently active");
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+  auto index = freeIndices.back();
+  freeIndices.pop_back();
+#else
   auto index = freeIndices.pop_back_val();
+#endif
   assert(allCPUDevices[index] == nullptr &&
          "index is still occupied by a CPUDevice");
   return index;

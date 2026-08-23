@@ -21,8 +21,12 @@
 
 #include "Support/Error.h"
 #include "Support/LLVMForwardDecls.h"
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+#include "Support/LogicalResultIOS.h"
+#else
 #include "Support/LogicalResult.h"
 #include "llvm/Support/ErrorHandling.h"
+#endif
 #include <cassert>
 #include <cstdlib>
 #include <functional>
@@ -213,7 +217,11 @@ public:
     case StorageMode::kMallocError:
       return errorStorage;
     }
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+    std::abort();
+#else
     llvm_unreachable("unsupported StorageMode");
+#endif
   }
 
   /// Move the error out of this ErrorOr, taking ownership of any heap allocated
@@ -222,7 +230,11 @@ public:
     assert(storageMode <= StorageMode::kValue && "invalid storage mode");
     switch (storageMode) {
     case StorageMode::kValue:
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+      std::abort();
+#else
       llvm::report_fatal_error("must hold an error");
+#endif
     case StorageMode::kStaticError:
     case StorageMode::kMallocError: {
       Error result;
@@ -232,7 +244,11 @@ public:
       return result;
     }
     }
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+    std::abort();
+#else
     llvm_unreachable("unsupported StorageMode");
+#endif
   }
 
   pointer operator->() { return &get(); }
@@ -284,6 +300,7 @@ public:
   ErrorOrSuccess() : ErrorOr(Detail::Empty()) {}
 };
 
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 /// Convert an LLVM error (which may be in either success state or error state)
 /// to a Modular ErrorOrSuccess.
 ErrorOrSuccess toModularErrorOr(llvm::Error llvmError);
@@ -303,6 +320,7 @@ ErrorOr<T> toModularErrorOr(llvm::ErrorOr<T> expected) {
     return std::move(*expected);
   return Error(expected.getError().message());
 }
+#endif
 
 } // namespace M
 

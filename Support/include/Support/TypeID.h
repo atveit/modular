@@ -24,7 +24,12 @@
 #include "Support/ADT/ConcurrentAppendingVector.h"
 #include "Support/Globals/Globals.h"
 #include "Support/LLVMForwardDecls.h"
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+#include <string>
+#include <unordered_map>
+#else
 #include "llvm/ADT/StringMap.h"
+#endif
 #include "llvm/Support/Compiler.h"
 
 #include <array>
@@ -195,7 +200,11 @@ public:
 
 private:
   mutable std::mutex mu; // protects ids
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+  std::unordered_map<std::string, Detail::RawTypeID> ids;
+#else
   llvm::StringMap<Detail::RawTypeID> ids;
+#endif
   ConcurrentAppendingVector<TypeInfo> entries;
 };
 

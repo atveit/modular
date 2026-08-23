@@ -30,12 +30,19 @@
 #include "AsyncRT/Support/Chain.h"
 #include "Support/RCRef.h"
 #include "Support/ReferenceCounted.h"
-#include "Support/STLExtras.h"
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 #include "Support/StringExtras.h"
+#endif
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+#include "Support/Threading/HWInfoIOS.h"
+#else
 #include "Support/Threading/HWInfo.h"
+#endif
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
+#if !defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
 #include "llvm/Support/Process.h"
+#endif
 
 #include <atomic>
 #include <map>
@@ -121,19 +128,27 @@ struct CPUDeviceOptions {
   // TODO arekay - revert to time units
   //  std::chrono::microseconds threadBusyWaitTime = 200us;
   size_t threadBusyWaitTime = []() -> size_t {
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+    return 0;
+#else
     if (auto env = llvm::sys::Process::GetEnv("MODULAR_THREAD_BUSY_WAIT_US")) {
       size_t value;
       if (!llvm::StringRef(*env).getAsInteger(10, value))
         return value;
     }
     return 200;
+#endif
   }();
   // Affinity is disabled by default due to performance issues with multiple
   // processes. Can be enabled by MODULAR_ENABLE_AFFINITY environment variable,
   // which in turn can be overridden by --cpu-affinity CLI flag.
   bool withAffinity = []() {
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+    return false;
+#else
     auto env = llvm::sys::Process::GetEnv("MODULAR_ENABLE_AFFINITY");
     return env.has_value() && M::isTrueLike(*env);
+#endif
   }();
   std::string poolName = "🔥 Thread";
   bool leakCheckedAllocator = false;
@@ -158,6 +173,9 @@ struct CPUDeviceOptions {
   CPUDeviceOptions() = default;
 
   StringRef getProfileFilename() const {
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+    return "";
+#else
     if constexpr (!kIsProfilingEnabled) {
       if (!profileFilename.empty())
         llvm::errs()
@@ -175,6 +193,7 @@ struct CPUDeviceOptions {
              " a release build.\n";
 #endif
     return profileFilename;
+#endif
   }
 
   // Temporary shim, remove once we separate the Allocator from the Runtime

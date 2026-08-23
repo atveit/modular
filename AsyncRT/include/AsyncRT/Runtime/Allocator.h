@@ -20,8 +20,12 @@
 #define ASYNCRT_RUNTIME_ALLOCATOR_H
 
 #include "Support/AlignedAlloc.h"
-#include "Support/Profiling/TimeProfiler.h"
+#include "AsyncRT/Runtime/Profiling.h"
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+#include "Support/Threading/HWInfoIOS.h"
+#else
 #include "Support/Threading/HWInfo.h"
+#endif
 
 #include <memory>
 

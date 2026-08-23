@@ -22,7 +22,7 @@
 #include "AsyncRT/Runtime/CPUDevice.h"
 #include "Support/ADT/GenericUniquePtrSet.h"
 #include "Support/CommandLine.h"
-#include "Support/Profiling/TimeProfiler.h"
+#include "AsyncRT/Runtime/Profiling.h"
 #include "Support/RCRef.h"
 #include "llvm/Support/Threading.h"
 #include <chrono>

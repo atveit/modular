@@ -160,8 +160,15 @@ KGEN_CompilerRT_AsyncRT_GetCurrentCPUDevice() {
 /// Get or create the AsyncRT cpuDevice and return its pointer.
 COMPILERRT_EXPORT COMPILERRT_VISIBILITY_EXPORT AsyncRTRuntimeRef
 KGEN_CompilerRT_AsyncRT_GetOrCreateCPUDevice() {
-  auto cpuDevice = getOrCreateCPUDevice(
-      CPUDeviceSource::MojoStdlib, CPUDeviceOptions().withMainWillNotDonate());
+  CPUDeviceOptions options;
+  options.withMainWillNotDonate();
+#if defined(MODULAR_ASYNCRT_IOS_SINGLE_THREAD)
+  // N11/N12 use the real CPUDevice/AsyncValue implementation with an explicit
+  // malloc-backed serial work queue. N13 replaces this temporary correctness
+  // profile with the reviewed bounded mobile worker pool.
+  options.withSingleThreaded().withTCMallocAllocator(false);
+#endif
+  auto cpuDevice = getOrCreateCPUDevice(CPUDeviceSource::MojoStdlib, options);
   return wrap(cpuDevice.release());
 }
 
