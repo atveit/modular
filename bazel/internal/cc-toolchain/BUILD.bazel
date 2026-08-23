@@ -43,12 +43,36 @@ cc_sysroot(
     sysroot = "@sysroot-macos//sysroot:root",
 )
 
+cc_sysroot(
+    name = "ios_device_sysroot",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    allowlist_include_directories = ["@sysroot-ios-device//sysroot:root"],
+    data = ["@sysroot-ios-device//sysroot:directory"],
+    sysroot = "@sysroot-ios-device//sysroot:root",
+)
+
+cc_sysroot(
+    name = "ios_simulator_sysroot",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    allowlist_include_directories = ["@sysroot-ios-simulator//sysroot:root"],
+    data = ["@sysroot-ios-simulator//sysroot:directory"],
+    sysroot = "@sysroot-ios-simulator//sysroot:root",
+)
+
 [
     cc_toolchain(
         name = "{}_clang_toolchain".format(platform),
         args = select({
             "//:linux_x86_64": [":linux_sysroot_x86_64"],
             "//:linux_aarch64": [":linux_sysroot_aarch64"],
+            "//:ios_device_arm64": [":ios_device_sysroot"],
+            "//:ios_simulator_arm64": [":ios_simulator_sysroot"],
             "@platforms//os:macos": [":macos_sysroot"],
         }) + [
             "//bazel/internal/cc-toolchain/args:resource_dir_args",
@@ -72,6 +96,10 @@ cc_sysroot(
         }),
         artifact_name_patterns = select({
             "@platforms//os:macos": [
+                ":macos-dylib-pattern",
+                ":macos-tbd-pattern",
+            ],
+            "@platforms//os:ios": [
                 ":macos-dylib-pattern",
                 ":macos-tbd-pattern",
             ],
@@ -123,10 +151,14 @@ cc_sysroot(
             "@platforms//os:macos": [
                 "//bazel/internal/cc-toolchain/features:generate_dsym",
             ],
+            "@platforms//os:ios": [
+                "//bazel/internal/cc-toolchain/features:generate_dsym",
+            ],
             "//conditions:default": [],
         }),
         make_variables = select({
             "@platforms//os:macos": [":macos_stack_frame"],
+            "@platforms//os:ios": [":macos_stack_frame"],
             "//conditions:default": [],
         }),
         module_map = "//bazel/internal/cc-toolchain/tools:builtin_module_map",
@@ -186,6 +218,41 @@ toolchain(
         "@platforms//os:macos",
     ],
     tags = [TOP_LEVEL_TAG],  # Used from MODULE.bazel
+    target_compatible_with = ["@platforms//os:macos"],
+    toolchain = ":macos_clang_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "ios-device-toolchain",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:macos",
+    ],
+    tags = [TOP_LEVEL_TAG],  # Used from MODULE.bazel
+    target_compatible_with = [
+        "@build_bazel_apple_support//constraints:apple",
+        "@build_bazel_apple_support//constraints:device",
+        "@platforms//cpu:arm64",
+        "@platforms//os:ios",
+    ],
+    toolchain = ":macos_clang_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "ios-simulator-toolchain",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:macos",
+    ],
+    tags = [TOP_LEVEL_TAG],  # Used from MODULE.bazel
+    target_compatible_with = [
+        "@build_bazel_apple_support//constraints:apple",
+        "@build_bazel_apple_support//constraints:simulator",
+        "@platforms//cpu:arm64",
+        "@platforms//os:ios",
+    ],
     toolchain = ":macos_clang_toolchain",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
@@ -241,6 +308,10 @@ filegroup(
             "@clang-linux-x86_64//:bin/llvm-profdata",
         ],
         "@platforms//os:macos": [
+            "@clang-macos//:bin/llvm-cov",
+            "@clang-macos//:bin/llvm-profdata",
+        ],
+        "@platforms//os:ios": [
             "@clang-macos//:bin/llvm-cov",
             "@clang-macos//:bin/llvm-profdata",
         ],

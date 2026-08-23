@@ -15,6 +15,7 @@ bazel_dep(name = "opentelemetry-cpp", version = "1.19.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "protobuf", version = "34.0.bcr.1", repo_name = "com_google_protobuf")
 bazel_dep(name = "rules_cc", version = "0.2.18")
+
 # Bazel 10 support is currently available only in the reviewed release-candidate
 # line. Keep the Apple and Swift rules explicit until their stable releases.
 bazel_dep(name = "rules_apple", version = "5.0.0-rc3", repo_name = "build_bazel_rules_apple")
@@ -79,6 +80,8 @@ archive_override(
         "//bazel/public-patches:rules_mypy_pyi_files.patch",
         # https://github.com/bazel-contrib/rules_mypy/pull/141
         "//bazel/public-patches:rules_mypy_transitives.patch",
+        # Aspect tool inputs must use the execution platform during cross-compilation.
+        "//bazel/public-patches:rules_mypy_exec_types.patch",
     ],
     strip_prefix = "rules_mypy-0.41.0",
     urls = [

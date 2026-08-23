@@ -19,6 +19,46 @@ macos_sysroot_repository = use_repo_rule("//bazel/internal/cc-toolchain:macos_sy
 
 macos_sysroot_repository(name = "sysroot-macos")
 
+apple_sysroot_repository = use_repo_rule("//bazel/internal/cc-toolchain:apple_sysroot_repository.bzl", "apple_sysroot_repository")
+
+apple_sysroot_repository(
+    name = "sysroot-ios-device",
+    frameworks = [
+        "Accelerate",
+        "CoreFoundation",
+        "CoreGraphics",
+        "CoreText",
+        "Foundation",
+        "ImageIO",
+        "Metal",
+        "QuartzCore",
+        "Security",
+        "SystemConfiguration",
+        "UIKit",
+        "UniformTypeIdentifiers",
+    ],
+    sdk_name = "iphoneos",
+)
+
+apple_sysroot_repository(
+    name = "sysroot-ios-simulator",
+    frameworks = [
+        "Accelerate",
+        "CoreFoundation",
+        "CoreGraphics",
+        "CoreText",
+        "Foundation",
+        "ImageIO",
+        "Metal",
+        "QuartzCore",
+        "Security",
+        "SystemConfiguration",
+        "UIKit",
+        "UniformTypeIdentifiers",
+    ],
+    sdk_name = "iphonesimulator",
+)
+
 include("//bazel:mojo.MODULE.bazel")
 
 link_hack = use_repo_rule("//bazel/internal:link_hack.bzl", "link_hack")

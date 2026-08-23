@@ -48,6 +48,7 @@ cc_args(
         "BUILD_IFS": "{generate_interface_library}",
     } | select({
         "@platforms//os:macos": {"MACOS": "true"},
+        "@platforms//os:ios": {"MACOS": "true"},
         "//conditions:default": {},
     }),
     format = {"generate_interface_library": "@rules_cc//cc/toolchains/variables:generate_interface_library"},

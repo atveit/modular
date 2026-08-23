@@ -559,7 +559,7 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1–N5 are complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1–N7 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
 `KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
@@ -577,20 +577,27 @@ process spawning now has an explicit iOS compile-time diagnostic. N5 adds
 10,000 repeated scalar, caller-buffer, opaque-handle, Error-to-status, and
 allocating String calls with clean Simulator exit; device/Simulator dead-strip
 checks; and an explicit duplicate-runtime negative link gate. It makes no
-sanitizer-backed leak/race claim. N6 is next.
+sanitizer-backed leak/race claim.
 
 N6 dependency selection is now validated and promoted: `rules_apple`
 5.0.0-rc3, `rules_swift` 4.0.0-rc5, `apple_support` 2.8.1, and protobuf
 34.0.bcr.1. The obsolete protobuf-33 patch is removed. A detached-root trial
 built KGEN, desktop CompilerRT, both iOS core archives, and passed the focused
-KGEN/stdlib suites with 16 jobs. A minimal `ios_application` loads and queries,
-then stops at the registered macOS-only C++ toolchain. N6's dependency gate is
-complete; its no-Mojo app build gate will close with N7 rather than by adding a
-fallback toolchain.
+KGEN/stdlib suites with 16 jobs. Its minimal `ios_application` historically
+identified the custom C++ toolchain boundary that N7 now clears. N7 registers
+separate iPhoneOS and iPhoneSimulator SDK repositories,
+exact arm64 iOS 17 triples, target constraints, libc++/compile/link policies,
+and host-executed Apple clang tools in the root C++ toolchain. The permanent
+`bazel/internal/cc-toolchain/ios_smoke/run_ios_cc_toolchain_smoke.sh` gate
+builds both raw Mach-O variants, verifies `IOS`/`IOSSIMULATOR` plus minimum iOS
+17, and asserts exact SDK/triple action inputs with no compile-action `xcrun`.
+The always-on mypy aspect also resolves its type-wheel inputs in the execution
+configuration, so normal root Bazel commands cross-analyze successfully.
+Sanitizer runtimes remain explicitly outside the supported iOS target profile.
+N8 is next.
 
-The immediate coding order is N1–N5, while N6–N9 should proceed as a separate
-dependency/toolchain stack. N11 must begin with dependency isolation and may
-run in parallel with those tracks, but N12 cannot be declared complete until
+The immediate coding order is now N8 and N9, followed by N10 packaging. N11
+must begin with dependency isolation, but N12 cannot be declared complete until
 the real public `OptionalPointer` ABI and CPU-device semantics execute. Physical
 device work is still valuable but is not a prerequisite for N1–N13.
 

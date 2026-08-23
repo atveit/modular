@@ -33,6 +33,8 @@ cc_args(
     ] + select({
         "//:linux_x86_64": ["--target=x86_64-unknown-linux-gnu"],
         "//:linux_aarch64": ["--target=aarch64-unknown-linux-gnu"],
+        "//:ios_device_arm64": ["--target=arm64-apple-ios17.0"],
+        "//:ios_simulator_arm64": ["--target=arm64-apple-ios17.0-simulator"],
         # TODO: Pull 11.0 from config set in .bazelrc
         "@platforms//os:macos": ["--target=arm64-apple-macosx11.0"],
     }) + select({
@@ -41,6 +43,7 @@ cc_args(
             "-gz",
         ],
         "@platforms//os:macos": [],
+        "@platforms//os:ios": [],
     }),
     env = {
         "ZERO_AR_DATE": "1",  # Required for hermetic links on macOS (default dependent)
@@ -138,12 +141,14 @@ cc_args(
             "-ffunction-sections",
         ],
         "@platforms//os:macos": [],
+        "@platforms//os:ios": [],
     }) + select({
         # Match the Mojo toolchain's target-cpu so AVX-512 doesn't leak
         # into auto-vectorized C++ stdlib code on AVX-512-capable hosts.
         "//:linux_x86_64": ["-march=x86-64-v3"],
         "//:linux_aarch64": ["-mcpu=neoverse-n1"],
         "@platforms//os:macos": [],
+        "@platforms//os:ios": [],
     }),
 )
 
@@ -158,6 +163,7 @@ cc_args(
     ] + select({
         "@platforms//os:linux": ["-stdlib=libstdc++"],
         "@platforms//os:macos": ["-stdlib=libc++"],
+        "@platforms//os:ios": ["-stdlib=libc++"],
     }),
 )
 
@@ -195,6 +201,12 @@ cc_args(
             "-Wl,-no_warn_duplicate_libraries",
             "-Wl,-oso_prefix,.",  # Strip absolute paths from debug info file references
         ],
+        "@platforms//os:ios": [
+            "-headerpad_max_install_names",
+            "-lc++",
+            "-Wl,-no_warn_duplicate_libraries",
+            "-Wl,-oso_prefix,.",  # Strip absolute paths from debug info file references
+        ],
     }) + select({
         # Sanitizers are split across multiple libraries, some of which aren't linked to shared libraries
         "//:asan_linux": ["-Wl,-z,undefs"],
@@ -221,6 +233,7 @@ cc_args(
         "@platforms//os:linux": [
             "-Wl,-rpath,$ORIGIN/../lib",
         ],
+        "@platforms//os:ios": [],
     }),
 )
 
@@ -236,6 +249,7 @@ cc_args(
             "-Wl,-rpath,$ORIGIN",
             "-Wl,-rpath,$ORIGIN/../lib",
         ],
+        "@platforms//os:ios": [],
     }),
 )
 
@@ -254,6 +268,7 @@ cc_args(
     args = select({
         "@platforms//os:linux": ["-Wl,--gc-sections"],
         "@platforms//os:macos": ["-Wl,-dead_strip"],
+        "@platforms//os:ios": ["-Wl,-dead_strip"],
     }),
 )
 
@@ -359,6 +374,7 @@ cc_args(
     actions = ["@rules_cc//cc/toolchains/actions:compile_actions"],
     args = select({
         "@platforms//os:macos": ["-Xclang"],
+        "@platforms//os:ios": ["-Xclang"],
         "//conditions:default": [],
     }) + ["-fmodule-name={module_name}"],
     format = {
@@ -372,6 +388,7 @@ cc_args(
     actions = ["@rules_cc//cc/toolchains/actions:compile_actions"],
     args = select({
         "@platforms//os:macos": ["-Xclang"],
+        "@platforms//os:ios": ["-Xclang"],
         "//conditions:default": [],
     }) + ["-fmodule-map-file={module_map_file}"],
     format = {
@@ -385,6 +402,7 @@ cc_args(
     actions = ["@rules_cc//cc/toolchains/actions:compile_actions"],
     args = select({
         "@platforms//os:macos": ["-Xclang"],
+        "@platforms//os:ios": ["-Xclang"],
         "//conditions:default": [],
     }) + [
         "-fmodule-map-file={dependent_module_map_files}",

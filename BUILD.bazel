@@ -175,6 +175,28 @@ config_setting(
     ],
 )
 
+config_setting(
+    name = "ios_device_arm64",
+    constraint_values = [
+        "@build_bazel_apple_support//constraints:apple",
+        "@build_bazel_apple_support//constraints:device",
+        "@platforms//cpu:arm64",
+        "@platforms//os:ios",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "ios_simulator_arm64",
+    constraint_values = [
+        "@build_bazel_apple_support//constraints:apple",
+        "@build_bazel_apple_support//constraints:simulator",
+        "@platforms//cpu:arm64",
+        "@platforms//os:ios",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 alias(
     name = "lint",
     actual = "//bazel/lint",

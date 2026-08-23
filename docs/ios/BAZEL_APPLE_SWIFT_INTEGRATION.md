@@ -1,7 +1,7 @@
 # Bazel Apple/Swift integration
 
-This note records the N6 dependency-owner trial and the remaining N7 root C++
-toolchain boundary. No `ios_application` target is enabled by this document.
+This note records the completed N6 dependency-owner migration and N7 root iOS
+C++ toolchain. The canonical `ios_application` remains N9.
 
 ## Current checkout evidence
 
@@ -58,9 +58,9 @@ bazel_dep(
 )
 ```
 
-The dependency trial is complete, but the repository explicitly registers its
-own C++ toolchain. N7 must make that toolchain target-aware rather than relying
-on an ambient Apple-rule fallback.
+The dependency trial is complete, and the repository's own C++ toolchain now
+registers exact iPhoneOS and iPhoneSimulator arm64 target variants rather than
+relying on an ambient Apple-rule fallback.
 The first target should be
 Simulator-only, use the existing `Info.plist`, and have this dependency shape:
 
@@ -95,21 +95,17 @@ pre-release.
 | `rules_apple` 5.0.0-rc3 / `rules_swift` 4.0.0-rc5 | Graph, KGEN/CompilerRT/iOS archives, and focused tests pass; minimal UIKit query reaches the repo-owned `macos_clang_toolchain` and stops because its configurable args have no iOS/default branch | Selected N6 pair; clears the Apple transition blocker and selects apple_support 2.8.1 plus protobuf 34.0.bcr.1 |
 
 That N6 dependency-owner step is now promoted with protobuf 34 and the old
-patch removed. The remaining sequence is N7 target-aware C++ toolchain
-support, N8 same-graph Mojo archives, and N9 the canonical app. A local
+patch removed. N7 target-aware C++ toolchain support is also complete; the
+remaining sequence is N8 same-graph Mojo archives and N9 the canonical app. A local
 transition patch or an older Apple-rules pin remains an unsafe substitute.
 
-The 5.0.0-rc3/4.0.0-rc5 control is the selected pair that reaches the
-repository's own C++ toolchain under Bazel 10. A disposable prototype added
-Xcode-discovered iPhoneOS/iPhoneSimulator sysroot repositories, standard
-device/Simulator constraints, and target triples; that clears the initial
-sysroot select. Analysis then stops at `args:cpp_compile_args`, whose
-`-stdlib` select is still Linux/macOS-only, with further macOS-only compile,
-link, rpath, and sanitizer selects behind it. The next dependency-owner task
-is a complete, target-aware iOS C++ toolchain branch (with declared SDK
-inputs), followed by the CcInfo archive consumer. Do not add a broad
-macOS-toolchain fallback: the direct RC pins are now reviewed, while the
-control still has no Mojo app/runtime claim until N7–N9.
+The 5.0.0-rc3/4.0.0-rc5 pair now reaches a root toolchain with declared,
+separate iPhoneOS/iPhoneSimulator SDK inputs; standard device/Simulator
+constraints; exact iOS 17 triples; libc++; and iOS compile, link, rpath,
+artifact, module-map, and host-tool selections. The permanent smoke runner at
+`bazel/internal/cc-toolchain/ios_smoke/run_ios_cc_toolchain_smoke.sh` builds
+both raw Mach-O targets and checks action provenance. It does not build an app,
+sign, launch, or claim target sanitizer support.
 
 One reusable prerequisite is now checked in independently of that dependency
 decision: `bazel/internal/cc-toolchain/apple_sysroot_repository.bzl` resolves
@@ -117,9 +113,8 @@ an explicit `macosx`, `iphoneos`, or `iphonesimulator` SDK and accepts an
 explicit framework allowlist. The diagnostic
 `bazel/internal/cc-toolchain/run_apple_sysroot_repository_diagnostic.sh`
 queries both iOS SDK repositories with UIKit and passes. The existing
-`macos_sysroot_repository` remains unchanged, and the new rule is not yet
-registered in the root module or selected by a C++ toolchain. This is a
-sysroot-repository fix, not root Apple app integration.
+`macos_sysroot_repository` remains unchanged; the generic rule is now
+registered twice and selected by the exact root iOS toolchains.
 
 ## Present blockers and next action
 
@@ -140,9 +135,9 @@ do not correspond to valid settings
 ```
 
 That nested diagnostic remains historical evidence. The root now uses the
-selected 5.0.0-rc3/4.0.0-rc5 pair; its next action is N7's complete iOS branch
-in the registered C++ toolchain, then a compile-only Swift library before any
-application, XCTest, UI, or runtime claim.
+selected 5.0.0-rc3/4.0.0-rc5 pair and the completed N7 iOS C++ toolchain. Its
+next action is N8's same-graph Mojo/core-runtime archive, then N9's Swift
+library/application/XCTest/UI targets.
 
 ## Archive-consumer control
 

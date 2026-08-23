@@ -1,0 +1,18 @@
+diff --git a/mypy/private/mypy.bzl b/mypy/private/mypy.bzl
+index e87c825..21003cd 100644
+--- a/mypy/private/mypy.bzl
++++ b/mypy/private/mypy.bzl
+@@ -295,2 +295,11 @@ def mypy(
+-            "_types_keys": attr.label_list(default = types.keys()),
+-            "_types_values": attr.label_list(default = types.values()),
++            # These are mypy action inputs, not target-platform libraries. Resolve
++            # them in the execution configuration so cross-compiled targets do not
++            # attempt to select Python wheels for the target OS.
++            "_types_keys": attr.label_list(
++                default = types.keys(),
++                cfg = "exec",
++            ),
++            "_types_values": attr.label_list(
++                default = types.values(),
++                cfg = "exec",
++            ),
