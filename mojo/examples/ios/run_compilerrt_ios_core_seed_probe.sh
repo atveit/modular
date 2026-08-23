@@ -74,7 +74,8 @@ if [[ -n "${archive_override}" ]]; then
     _KGEN_CompilerRT_GetOrCreateGlobalIndexed \
     _KGEN_CompilerRT_GetStackTrace \
     _KGEN_CompilerRT_Initialize \
-    _KGEN_CompilerRT_InsertGlobal; do
+    _KGEN_CompilerRT_InsertGlobal \
+    _KGEN_CompilerRT_fprintf; do
     grep -q "${symbol}$" "${archive_symbol_manifest}" || fail "core-seed archive is missing ${symbol}"
   done
   log "using target-checked archive: ${archive_path}"
@@ -89,7 +90,7 @@ else
     "${minimum_os_flag}" -arch arm64 -std=c++20
     -DMODULAR_BUILDING_COMPILERRT -I"${repo_root}/Support/include"
     -isystem "${llvm_source_include}" -isystem "${llvm_generated_include}")
-  sources=(MemoryIOS.cpp Initialize.cpp GlobalsIOS.cpp StackTraceIOS.cpp)
+  sources=(MemoryIOS.cpp Initialize.cpp GlobalsIOS.cpp StackTraceIOS.cpp PrintIOS.cpp)
   objects=()
   for source in "${sources[@]}"; do
     object_path="${output_root}/${source%.cpp}.o"

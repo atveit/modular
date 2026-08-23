@@ -315,6 +315,14 @@ LLVM/MLIR dependencies (`file_status::getSize`, `EnvPathSeparator`, and
 TCMalloc/RuntimeGlobals graph. No AsyncRT subset is therefore wired into the
 iOS runtime until a target-configured LLVM/MLIR toolchain and an intentionally
 extracted shim API exist.
+The first sandbox-file increment is now separately proven. `PrintIOS.cpp`
+supplies only the formatted-print ABI required by the current file lowering,
+without importing desktop `System.cpp`. A real Mojo export uses `open`, writes
+and reads a fixed payload at a caller-owned app `TMPDIR` path, and the C host
+independently verifies and removes the file. The Simulator marker passes and
+the device artifact links with `IOS`/iOS 17 metadata. This is not evidence for
+arbitrary filesystem access, directory traversal, concurrent I/O,
+`initialize_runtime`, AsyncRT, or physical-device execution.
 D11 now has an artifact-only XCFramework, a
 generated local Swift Package metadata and iOS Simulator build, and a separate
 Swift consumer compile/link check for the runtime-free C ABI, covering `ios-arm64` and
@@ -408,7 +416,8 @@ zero/null “stack trace not collected” result, and observes
 `MOJO_COMPILERRT_ERROR_PROBE_PASS` on the Simulator. It does not claim throwing,
 stack capture, `initialize_runtime`, or AsyncRT support.
 A composite core-seed probe now compiles `MemoryIOS.cpp`, `Initialize.cpp`,
-`GlobalsIOS.cpp`, and `StackTraceIOS.cpp` into one fresh Simulator archive,
+`GlobalsIOS.cpp`, `StackTraceIOS.cpp`, and `PrintIOS.cpp` into one fresh
+Simulator archive,
 links both emitted Mojo global and Error probes, and observes
 `MOJO_COMPILERRT_CORE_SEED_PROBE_PASS`. This demonstrates only coexistence of
 the narrow allocation, named-global teardown, and Error-construction paths;

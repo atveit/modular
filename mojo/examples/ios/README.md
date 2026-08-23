@@ -556,7 +556,8 @@ stack capture, `initialize_runtime`, or AsyncRT.
 
 `run_compilerrt_ios_core_seed_probe.sh` is the composite non-AsyncRT gate. It
 builds one SDK-native archive containing `MemoryIOS`, `Initialize`, `GlobalsIOS`,
-and `StackTraceIOS`, then links both emitted Mojo probes into one Simulator app:
+`StackTraceIOS`, and `PrintIOS`, then links both emitted Mojo probes into one
+Simulator app:
 
 ```sh
 RUN_SIMULATOR=1 MOJO_IOS_CORE_SEED_PROBE_OUT="$(mktemp -d)" \
@@ -576,7 +577,7 @@ MOJO_IOS_CORE_SEED_PLATFORM=device \
   mojo/examples/ios/run_compilerrt_ios_core_seed_probe.sh
 ```
 
-It recompiles the same four sources and Mojo probes for `arm64-apple-ios17.0`
+It recompiles the same five sources and Mojo probes for `arm64-apple-ios17.0`
 with `apple-a7`, then verifies every object and final executable has `IOS`
 minimum-OS 17 metadata. It rejects `RUN_SIMULATOR=1` and performs no device
 signing, installation, or launch.
@@ -599,6 +600,24 @@ actions remain local and non-sandboxed until the root Apple C++ toolchain is
 implemented. They are target-correct build artifacts, not a claim of
 `initialize_runtime`, AsyncRT, physical-device execution, or a production
 CompilerRT package.
+
+The next bounded D6 increment exercises Mojo's standard-library file API with
+an app-owned sandbox path. It adds the libc-only `PrintIOS.cpp` forwarding ABI
+to the same target-correct core seed, emits one Mojo function using `open`,
+`FileHandle.write_bytes`, and `FileHandle.read`, and checks both platform
+variants:
+
+```sh
+RUN_SIMULATOR=1 MOJO_IOS_FILE_PROBE_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_compilerrt_ios_file_probe.sh
+```
+
+The Simulator C consumer supplies a path under `TMPDIR`, calls Mojo, then
+independently reads and compares the bytes before removing the file. The device
+variant is compile/link/metadata evidence only. This proves one ordinary-file
+roundtrip inside the application sandbox; it does not claim arbitrary path
+access, directory semantics, concurrent I/O, `initialize_runtime`, AsyncRT, or
+physical-device execution.
 
 The current `initialize_runtime`/AsyncRT boundary has a checked-in discovery
 gate:

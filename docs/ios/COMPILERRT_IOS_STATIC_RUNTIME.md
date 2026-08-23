@@ -56,7 +56,7 @@ The explicit target avoids reusing the shared-library glob. It is named
 | `Memory.cpp` | Replaced for first probe | `MemoryIOS.cpp` provides only `posix_memalign`/`free` entry points; the desktop TCMalloc implementation remains out of the iOS target |
 | `Support.cpp` | Defer from the bounded core seed | The existing bootstrap probe compiles its bfloat helpers, but current emitted global/Error probes do not require them |
 | `StackTraceIOS.cpp` | Include in bounded core seed | Implements the Error ABI's explicit “stack trace unavailable” path without desktop signal/configuration support |
-| System/printing | Small explicit subset | Keep only symbols required by the supported stdlib; avoid environment/configuration and global fault handlers initially |
+| `PrintIOS.cpp` | Include in bounded core seed | Provides only the stdlib `KGEN_CompilerRT_fprintf` forwarding ABI through public libc; avoids the CPU topology, argv, configuration, LLVM stack-trace, and signal code in desktop `System.cpp` |
 | AsyncRT | Later D6/D7 increment | Required for `initialize_runtime()`, async, and threading; add only after a static CPUDevice dependency graph is isolated |
 | Python, JIT, compiler services | Exclude | Not part of an app runtime |
 | `RangeBridge.cpp`, `Tracing.cpp`, `TracyBridge.cpp` | Exclude initially | Profiling/plugin loaders and desktop instrumentation are not required for the first app-safe library |
@@ -139,8 +139,10 @@ The first gate should inspect all of the following:
    by the fixture.
 4. The allocator gate proves allocation-symbol resolution and the owned-String
    lifetime marker. The core-seed gate additionally proves basic global
-   lifecycle and Error construction with stack traces unavailable. Neither
-   invokes `initialize_runtime()`, repeated initialization, or AsyncRT.
+   lifecycle and Error construction with stack traces unavailable. The file
+   gate additionally proves one Mojo `open`/write/read roundtrip at an
+   app-owned `TMPDIR` path. None invokes `initialize_runtime()`, repeated
+   initialization, or AsyncRT.
 5. `codesign --verify` and `simctl install/launch` validate the app bundle;
    physical-device signing and launch remain a later D5/D6 gate.
 
@@ -162,9 +164,9 @@ static runtime.
 
 The first D6 code change now has explicit source groups, separate target-correct
 Bazel archives for Simulator and device, SDK allocator/core-seed link actions,
-Simulator execution for the bounded core seed, and a versioned
+Simulator execution for the bounded core seed and sandbox-file roundtrip, and a versioned
 `initialize_runtime()` undefined-symbol manifest. D6 remains incomplete:
-repeated initialization, broader system/file support, AsyncRT/threading, and
+repeated initialization, broader filesystem/system coverage, AsyncRT/threading, and
 physical-device execution are still required. It must preserve the existing
 macOS/Linux `CompilerRT` target and make unsupported runtime features fail
 clearly rather than silently loading the desktop shared library.

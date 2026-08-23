@@ -956,6 +956,8 @@ modular_shared_library(
             "lib/CompilerRT/GlobalsIOS.cpp",
             # The iOS no-stack-trace ABI candidate is likewise SDK-fixture-only.
             "lib/CompilerRT/StackTraceIOS.cpp",
+            # The iOS libc-only print shim replaces the broader desktop System.cpp.
+            "lib/CompilerRT/PrintIOS.cpp",
         ],
     ),
     hdrs = glob([
@@ -1050,7 +1052,8 @@ filegroup(
 
 # Source-only access for the bounded non-AsyncRT iOS core seed. Unlike the
 # bootstrap group above, this selects the iOS global and no-stack-trace
-# implementations that have emitted-Mojo Simulator and device-link evidence.
+# implementations plus the libc-only print shim that have emitted-Mojo
+# Simulator and device-link evidence.
 # It is still not a complete runtime: AsyncRT and initialize_runtime support
 # remain deliberately excluded.
 filegroup(
@@ -1059,6 +1062,7 @@ filegroup(
         "lib/CompilerRT/GlobalsIOS.cpp",
         "lib/CompilerRT/Initialize.cpp",
         "lib/CompilerRT/MemoryIOS.cpp",
+        "lib/CompilerRT/PrintIOS.cpp",
         "lib/CompilerRT/StackTraceIOS.cpp",
     ],
     visibility = ["//mojo/examples/ios:__pkg__"],
