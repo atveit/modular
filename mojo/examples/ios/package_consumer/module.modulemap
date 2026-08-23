@@ -1,0 +1,4 @@
+module MojoIOSCore {
+  umbrella header "MojoIOSCore.h"
+  export *
+}

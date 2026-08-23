@@ -135,9 +135,18 @@ framework tree for that closure. N8 compile/archive actions remain sandboxed
 and free of action-time `xcrun`; the final application link is local-Xcode
 reproducible, not a remote-hermetic claim.
 
-The next action is N10: merge each Mojo/serial-core platform pair into one
-static product, create an XCFramework, wrap it in a local Swift Package, and
-run a clean Simulator consumer with no Mojo compiler or Modular installation.
+N10 is implemented by
+`mojo/examples/ios/package_consumer/run_clean_package_consumer.sh`. It merges
+each Mojo/serial-core platform pair into one static product with exactly one
+serial initializer, creates an XCFramework, and copies it into a local Swift
+Package. Its clean SwiftUI consumer builds under a sanitized Swift-only
+environment with no repository path, installs and launches in Simulator, and
+writes a marker only after checking Mojo's exact greeting and sum. Generated
+XCFrameworks remain build artifacts rather than tracked binaries.
+
+The next action is N11: isolate and target-compile the smallest
+behavior-preserving AsyncRT graph without pulling TCMalloc, desktop profiling,
+fault handlers, compiler/JIT facilities, or target-mismatched LLVM/MLIR.
 
 ## Historical blockers
 

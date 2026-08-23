@@ -561,7 +561,7 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1–N9 are complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1–N10 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
 `KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
@@ -616,7 +616,18 @@ wrapper for Swift autolink and SDK re-exports; this is bounded local-Xcode
 reproducibility, not a remote-hermetic link claim. It does not exercise
 `std.runtime.initialize_runtime()`, AsyncRT, or a physical device.
 
-The immediate coding order is now N10 packaging, followed by N11. N11
+N10 packages the device and Simulator products as distinct XCFramework
+variants. Each variant combines one runtime-free Mojo archive, one bounded
+serial-core archive, and one package bridge; symbol checks require exactly one
+serial initializer. A generated local Swift Package is copied into a clean
+directory and built under a sanitized Swift-only environment with no source
+repository path. The SwiftUI executable installs and launches in Simulator and
+writes `MOJO_IOS_PACKAGE_PASS` only after validating the exact Mojo greeting
+and calculation. The consumer build needs Xcode command-line tools, but it does
+not invoke Bazel or Mojo and does not require a Modular installation. Generated
+XCFrameworks remain untracked build artifacts.
+
+The immediate coding order is now N11, followed by N12. N11
 must begin with dependency isolation, but N12 cannot be declared complete until
 the real public `OptionalPointer` ABI and CPU-device semantics execute. Physical
 device work is still valuable but is not a prerequisite for N1–N13.

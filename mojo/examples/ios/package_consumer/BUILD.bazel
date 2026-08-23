@@ -1,0 +1,20 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "mojo_ios_package_bridge",
+    srcs = ["MojoIOSPackageBridge.c"],
+    hdrs = ["MojoIOSCore.h"],
+    aspect_hints = ["@build_bazel_rules_swift//swift:auto_module"],
+    deps = [
+        "//mojo/examples/ios:compilerrt_ios_core",
+        "//mojo/examples/ios:mojo_ios_archive",
+    ],
+)
+
+exports_files([
+    "Info.plist",
+    "Package.swift",
+    "run_clean_package_consumer.sh",
+])

@@ -150,6 +150,17 @@ successful assembly emit.
 
 ## XCFramework packaging smoke
 
+The canonical N10 package/runtime gate is
+`package_consumer/run_clean_package_consumer.sh`. It builds the N8 Mojo and
+serial-core archives for both iOS variants, combines exactly one copy per
+variant, creates an XCFramework and local Swift Package, then builds, installs,
+and launches a clean SwiftUI consumer with a sanitized Swift-only environment.
+The app writes a pass marker only after validating Mojo's greeting and sum.
+See [package_consumer/README.md](package_consumer/README.md).
+
+The older `run_xcframework_smoke.sh` remains a useful runtime-free,
+compile/link-only packaging diagnostic:
+
 `run_xcframework_smoke.sh` builds the runtime-free C ABI archive for both the
 arm64 device and arm64 Simulator targets, packages the two archives with
 `xcodebuild -create-xcframework`, and checks the XCFramework manifest plus the
