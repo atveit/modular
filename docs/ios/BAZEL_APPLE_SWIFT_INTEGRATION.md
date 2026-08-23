@@ -1,29 +1,37 @@
-# Bazel Apple/Swift integration reconnaissance
+# Bazel Apple/Swift integration
 
-This note records a read-only D3 investigation. It is not a request to modify
-`MODULE.bazel`, and no `ios_application` target is enabled by this document.
+This note records the N6 dependency-owner trial and the remaining N7 root C++
+toolchain boundary. No `ios_application` target is enabled by this document.
 
 ## Current checkout evidence
 
 The checkout uses Bazel `10.0.0-pre-46c5e789f84c7bf4ba1edb105eefa7bc4ebc841b`.
-Its root common module file directly pins `apple_support` to `2.3.0`,
+Its root common module file directly pins `apple_support` to `2.8.1`,
 `bazel_skylib` to `1.9.0`, `platforms` to `1.0.0`, and `rules_cc` to `0.2.18`.
-Neither `rules_apple` nor `rules_swift` is a direct dependency, so
-`@rules_apple` and `@build_bazel_rules_swift` are not visible from the main
-repository. The existing SwiftUI fixture must therefore remain source-only.
+It now directly registers `rules_apple` 5.0.0-rc3 as
+`@build_bazel_rules_apple` and `rules_swift` 4.0.0-rc5 as
+`@build_bazel_rules_swift`. These are explicit release-candidate pins because
+the current stable Apple-rule line does not support this Bazel 10 pre-release.
+The selected Swift rules require protobuf 34.0.bcr.1, so the root moved from
+protobuf 33.5 and removed the old 33-specific development-dependency patch.
 
-`bazel mod graph` and the checked-in module lock resolve a mutually compatible
-transitive pair already present through `grpc`/`protobuf`:
+The promoted graph resolves this reviewed pair:
 
 | Module | Resolved version | Relevant compatibility evidence |
 | --- | --- | --- |
-| `rules_apple` | `4.1.0` | declares Bazel `>=7.0.0`; selects `apple_support` 2.3.0 in this graph |
-| `rules_swift` | `3.1.2` | declares Bazel `>=7.0.0`; is the version selected by the graph |
-| `apple_support` | `2.3.0` | already direct and selected |
+| `rules_apple` | `5.0.0-rc3` | release notes declare compatibility with Bazel rolling releases |
+| `rules_swift` | `4.0.0-rc5` | current Bazel-10-compatible release-candidate line |
+| `apple_support` | `2.8.1` | selected by the direct root pin and the Swift/Apple graph |
+| `protobuf` | `34.0.bcr.1` | minimum declared by the selected Swift rules |
 
-This makes `rules_apple` 4.1.0 plus `rules_swift` 3.1.2 the bounded
-reproduction pair for the existing failure; it is not a compatible app-target
-recommendation for the checkout's Bazel 9.2.0/10.0-pre toolchain.
+In a detached disposable root at commit `3fb710146d`, this exact graph built
+`//KGEN:mojo`, desktop CompilerRT, and both target-correct iOS core archives.
+It also passed `//KGEN/unittests:unittests`, the static-library driver test,
+the iOS target test, and the stdlib OS lit suite with 16-way execution. A
+minimal UIKit `ios_application` loads and queries, then reaches the N7 blocker:
+the repo-owned `macos_clang_toolchain` has no iOS branch. This proves the
+dependency selection independently of the root toolchain implementation; it
+does not yet claim an app build.
 
 An isolated compatibility control upgraded only its nested module to
 `rules_apple` 4.5.3 and `rules_swift` 3.5.0. With Bazel 9.2.0 it analyzed and
@@ -33,29 +41,26 @@ newer pair can establish an Apple/Swift toolchain in isolation, not that it can
 be added to the root graph safely. The checked-in opt-in harness is
 `mojo/examples/ios/rules_apple_trial/run_isolated_compatibility_control.sh`.
 
-## Minimal isolated-trial shape
+## Selected root dependency shape
 
-An owner-approved branch should first add direct module visibility in a small,
-reviewable change, regenerate `MODULE.bazel.lock`, and run the existing
-SwiftUI source fixture through the resulting toolchains. The candidate shape
-is:
+The reviewed root shape is:
 
 ```starlark
-# Candidate only; do not paste without dependency-owner review.
-bazel_dep(name = "rules_apple", version = "4.5.3")
+bazel_dep(
+    name = "rules_apple",
+    version = "5.0.0-rc3",
+    repo_name = "build_bazel_rules_apple",
+)
 bazel_dep(
     name = "rules_swift",
-    version = "3.5.0",
+    version = "4.0.0-rc5",
     repo_name = "build_bazel_rules_swift",
 )
 ```
 
-The rule modules provide their own Apple C++ setup and Swift local-toolchain
-extensions. Before adding an app target, verify that those extensions resolve
-against the selected Xcode and that they do not replace or conflict with the
-repository's registered Mojo/C++ toolchains. The newer Swift module also raises
-the graph's minimum `protobuf` version (3.5.0 declares `34.0.bcr.1`, while the
-root currently selects 33.5), so it requires a full dependency-owner review.
+The dependency trial is complete, but the repository explicitly registers its
+own C++ toolchain. N7 must make that toolchain target-aware rather than relying
+on an ambient Apple-rule fallback.
 The first target should be
 Simulator-only, use the existing `Info.plist`, and have this dependency shape:
 
@@ -87,17 +92,14 @@ pre-release.
 | `rules_apple` 4.3.3 / `rules_swift` 3.1.2 | Analysis reached Apple rule implementation, then failed because Bazel's `apple` fragment lacks `multi_arch_platform` | Avoids the protobuf 34 requirement but is still Bazel-9 incompatible |
 | `rules_apple` 4.5.3 / `rules_swift` 3.5.0 | Query, analysis, and isolated Simulator IPA build pass | Requires `protobuf` 34.0.bcr.1 through rules_swift 3.5.0, so root dependency selection changes |
 | Disposable root with protobuf 34.0.bcr.1 and no protobuf patch | Graph, `CompilerRTIOSStatic`, and 70 KGEN tests pass; minimal UIKit app analysis fails because `//command_line_option:apple_platforms` is not a valid transition output under Bazel 10 | The protobuf patch can be reviewed separately; the Apple-rules/Bazel-10 transition remains the active root blocker |
-| `rules_apple` 5.0.0-rc3 / `rules_swift` 4.0.0-rc3 | Graph and minimal UIKit query pass; analysis reaches the repo-owned `macos_clang_toolchain` and stops because its configurable args have no iOS/default branch | Clears the Apple transition blocker, but requires an owner-reviewed iOS C++ toolchain branch and brings apple_support 2.6.1 plus Swift argument-parser dependency churn |
+| `rules_apple` 5.0.0-rc3 / `rules_swift` 4.0.0-rc5 | Graph, KGEN/CompilerRT/iOS archives, and focused tests pass; minimal UIKit query reaches the repo-owned `macos_clang_toolchain` and stops because its configurable args have no iOS/default branch | Selected N6 pair; clears the Apple transition blocker and selects apple_support 2.8.1 plus protobuf 34.0.bcr.1 |
 
-The practical adoption sequence is therefore a dependency-owner branch that
-accepts and reviews the protobuf 34 upgrade (including removing or porting the
-old development-dependency patch), pins an Apple/Swift pair compatible with
-the selected Bazel release, regenerates the root lockfile, and validates the
-full repository's existing Bazel tests before wiring an iOS target. A local
-transition patch or an older Apple-rules pin is not a safe substitute for that
-graph review.
+That N6 dependency-owner step is now promoted with protobuf 34 and the old
+patch removed. The remaining sequence is N7 target-aware C++ toolchain
+support, N8 same-graph Mojo archives, and N9 the canonical app. A local
+transition patch or an older Apple-rules pin remains an unsafe substitute.
 
-The 5.0.0-rc3/4.0.0-rc3 control is the first candidate that reaches the
+The 5.0.0-rc3/4.0.0-rc5 control is the selected pair that reaches the
 repository's own C++ toolchain under Bazel 10. A disposable prototype added
 Xcode-discovered iPhoneOS/iPhoneSimulator sysroot repositories, standard
 device/Simulator constraints, and target triples; that clears the initial
@@ -105,10 +107,9 @@ sysroot select. Analysis then stops at `args:cpp_compile_args`, whose
 `-stdlib` select is still Linux/macOS-only, with further macOS-only compile,
 link, rpath, and sanitizer selects behind it. The next dependency-owner task
 is a complete, target-aware iOS C++ toolchain branch (with declared SDK
-inputs), followed by the CcInfo archive consumer. Do not make the RC pair or a
-broad macOS-toolchain fallback a root change solely from this control; its
-dependency churn is material and the control still has no Mojo app/runtime
-claim.
+inputs), followed by the CcInfo archive consumer. Do not add a broad
+macOS-toolchain fallback: the direct RC pins are now reviewed, while the
+control still has no Mojo app/runtime claim until N7–N9.
 
 One reusable prerequisite is now checked in independently of that dependency
 decision: `bazel/internal/cc-toolchain/apple_sysroot_repository.bzl` resolves
@@ -122,13 +123,10 @@ sysroot-repository fix, not root Apple app integration.
 
 ## Present blockers and next action
 
-The direct-repository queries fail because the aliases are absent, despite the
-transitive modules being resolved. The repository-rule mismatch that previously
-blocked `bazel mod all_paths` has been repaired by restoring
-`bazel/internal/link_hack.bzl` from the historical contract expected by
-`MODULE.bazel`; `bazel mod all_paths rules_apple` and `rules_swift` now
-complete. This fixes module evaluation only; it does not make the Apple rule
-repositories visible from the main repository.
+The direct repositories are now visible as `@build_bazel_rules_apple` and
+`@build_bazel_rules_swift`. The repository-rule mismatch that previously
+blocked `bazel mod all_paths` remains repaired by the restored
+`bazel/internal/link_hack.bzl` contract.
 
 The isolated trial is now checked in under
 `mojo/examples/ios/rules_apple_trial/`. Its load-only query resolves and loads
@@ -141,14 +139,10 @@ transition inputs [//command_line_option:apple_crosstool_top]
 do not correspond to valid settings
 ```
 
-The diagnostic exits successfully after saving the full log so it is a
-reproducible blocker report, not a passing app build. A separate temporary
-4.5.3/3.5.0 control succeeds, but is not evidence that the root can safely
-adopt it. Next action: have the Bazel dependency/toolchain owner review module
-version selection and toolchain registration in a dedicated branch before
-making the newer pair direct root dependencies, then build a compile-only
-Simulator Swift library before declaring an application or claiming
-XCTest/UI/runtime support.
+That nested diagnostic remains historical evidence. The root now uses the
+selected 5.0.0-rc3/4.0.0-rc5 pair; its next action is N7's complete iOS branch
+in the registered C++ toolchain, then a compile-only Swift library before any
+application, XCTest, UI, or runtime claim.
 
 ## Archive-consumer control
 

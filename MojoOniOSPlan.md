@@ -579,6 +579,15 @@ allocating String calls with clean Simulator exit; device/Simulator dead-strip
 checks; and an explicit duplicate-runtime negative link gate. It makes no
 sanitizer-backed leak/race claim. N6 is next.
 
+N6 dependency selection is now validated and promoted: `rules_apple`
+5.0.0-rc3, `rules_swift` 4.0.0-rc5, `apple_support` 2.8.1, and protobuf
+34.0.bcr.1. The obsolete protobuf-33 patch is removed. A detached-root trial
+built KGEN, desktop CompilerRT, both iOS core archives, and passed the focused
+KGEN/stdlib suites with 16 jobs. A minimal `ios_application` loads and queries,
+then stops at the registered macOS-only C++ toolchain. N6's dependency gate is
+complete; its no-Mojo app build gate will close with N7 rather than by adding a
+fallback toolchain.
+
 The immediate coding order is N1–N5, while N6–N9 should proceed as a separate
 dependency/toolchain stack. N11 must begin with dependency isolation and may
 run in parallel with those tracks, but N12 cannot be declared complete until

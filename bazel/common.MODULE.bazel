@@ -1,7 +1,7 @@
 """Define bazel dependencies common to the internal and external repos."""
 
 bazel_dep(name = "abseil-cpp", version = "20250814.2")
-bazel_dep(name = "apple_support", version = "2.3.0", repo_name = "build_bazel_apple_support")
+bazel_dep(name = "apple_support", version = "2.8.1", repo_name = "build_bazel_apple_support")
 bazel_dep(name = "aspect_bazel_lib", version = "2.21.2")
 bazel_dep(name = "aspect_rules_js", version = "2.9.2")  # TODO: bump to pnpm >v9 for v3
 bazel_dep(name = "aspect_rules_ts", version = "3.7.0")
@@ -13,8 +13,12 @@ bazel_dep(name = "google_benchmark", version = "1.9.4")
 bazel_dep(name = "grpc", version = "1.76.0.bcr.1", repo_name = "com_github_grpc_grpc")
 bazel_dep(name = "opentelemetry-cpp", version = "1.19.0")
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "protobuf", version = "33.5", repo_name = "com_google_protobuf")
+bazel_dep(name = "protobuf", version = "34.0.bcr.1", repo_name = "com_google_protobuf")
 bazel_dep(name = "rules_cc", version = "0.2.18")
+# Bazel 10 support is currently available only in the reviewed release-candidate
+# line. Keep the Apple and Swift rules explicit until their stable releases.
+bazel_dep(name = "rules_apple", version = "5.0.0-rc3", repo_name = "build_bazel_rules_apple")
+bazel_dep(name = "rules_swift", version = "4.0.0-rc5", repo_name = "build_bazel_rules_swift")
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
 bazel_dep(name = "rules_mojo")
 bazel_dep(name = "rules_multirun", version = "0.13.0")
@@ -102,15 +106,6 @@ single_version_override(
         "//bazel/public-patches:rules_pycross_exports.patch",
         # TODO: Remove when 3.8 is no longer pulled in transitively
         "//bazel/public-patches:rules_pycross_versions.patch",
-    ],
-)
-
-single_version_override(
-    module_name = "protobuf",
-    patch_strip = 1,
-    patches = [
-        # FIXME: `@system_python` is a dev dep, but used in non-dev code
-        "//bazel/public-patches:protobuf-dev-dep.patch",
     ],
 )
 
