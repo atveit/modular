@@ -27,7 +27,7 @@ def setenv(var name: String, var value: String, overwrite: Bool = True) -> Bool:
     """Changes or adds an environment variable.
 
     Constraints:
-      The function only works on macOS or Linux and returns False otherwise.
+      The function works on macOS, iOS, and Linux and returns False otherwise.
 
     Args:
       name: The name of the environment variable.
@@ -50,6 +50,9 @@ def setenv(var name: String, var value: String, overwrite: Bool = True) -> Bool:
 def unsetenv(var name: String) -> Bool:
     """Unsets an environment variable.
 
+    Constraints:
+      The function works on macOS, iOS, and Linux and returns False otherwise.
+
     Args:
         name: The name of the environment variable.
 
@@ -63,7 +66,7 @@ def getenv(var name: String, default: String = "") -> String:
     """Returns the value of the given environment variable.
 
     Constraints:
-      The function only works on macOS or Linux and returns an empty string
+      The function works on macOS, iOS, and Linux and returns the default value
       otherwise.
 
     Args:

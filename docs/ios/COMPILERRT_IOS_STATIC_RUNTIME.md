@@ -140,9 +140,9 @@ The first gate should inspect all of the following:
 4. The allocator gate proves allocation-symbol resolution and the owned-String
    lifetime marker. The core-seed gate additionally proves basic global
    lifecycle and Error construction with stack traces unavailable. The file
-   gate additionally proves one Mojo `open`/write/read roundtrip at an
-   app-owned `TMPDIR` path. None invokes `initialize_runtime()`, repeated
-   initialization, or AsyncRT.
+   gate additionally proves process-local `setenv`/`getenv`/`unsetenv` and one
+   Mojo `open`/write/read roundtrip at an app-owned `TMPDIR` path. None invokes
+   `initialize_runtime()`, repeated initialization, or AsyncRT.
 5. `codesign --verify` and `simctl install/launch` validate the app bundle;
    physical-device signing and launch remain a later D5/D6 gate.
 

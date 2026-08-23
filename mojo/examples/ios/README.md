@@ -612,9 +612,11 @@ RUN_SIMULATOR=1 MOJO_IOS_FILE_PROBE_OUT="$(mktemp -d)" \
   mojo/examples/ios/run_compilerrt_ios_file_probe.sh
 ```
 
-The Simulator C consumer supplies a path under `TMPDIR`, calls Mojo, then
-independently reads and compares the bytes before removing the file. The device
-variant is compile/link/metadata evidence only. This proves one ordinary-file
+The same Mojo object also roundtrips a private environment value through
+`setenv`, `getenv`, and `unsetenv`. The Simulator C consumer supplies a path
+under `TMPDIR`, calls Mojo, then independently reads and compares the bytes
+before removing the file. The device variant is compile/link/metadata evidence
+only. This proves process-local environment access and one ordinary-file
 roundtrip inside the application sandbox; it does not claim arbitrary path
 access, directory semantics, concurrent I/O, `initialize_runtime`, AsyncRT, or
 physical-device execution.

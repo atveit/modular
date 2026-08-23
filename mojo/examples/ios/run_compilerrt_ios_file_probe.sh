@@ -63,6 +63,9 @@ build_platform() {
   nm -u "${mojo_object}" | grep -qx _open || fail "Darwin open dependency missing"
   nm -u "${mojo_object}" | grep -qx _read || fail "Darwin read dependency missing"
   nm -u "${mojo_object}" | grep -qx _write || fail "Darwin write dependency missing"
+  nm -u "${mojo_object}" | grep -qx _getenv || fail "Darwin getenv dependency missing"
+  nm -u "${mojo_object}" | grep -qx _setenv || fail "Darwin setenv dependency missing"
+  nm -u "${mojo_object}" | grep -qx _unsetenv || fail "Darwin unsetenv dependency missing"
 
   "${clang_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
     "${minimum_os_flag}" -arch arm64 \
@@ -100,5 +103,5 @@ xcrun simctl bootstatus "${device_udid}" -b
 xcrun simctl install "${device_udid}" "${app_path}"
 xcrun simctl launch --console "${device_udid}" "${app_id}" | tee "${output_root}/simulator/launch.log"
 grep -qx 'MOJO_COMPILERRT_FILE_ROUNDTRIP_PASS' "${output_root}/simulator/launch.log" || fail "missing file roundtrip marker"
-log "PASS: Mojo wrote and read an app-sandbox temporary file in Simulator"
+log "PASS: Mojo roundtripped an environment value and an app-sandbox temporary file in Simulator"
 log "No initialize_runtime, AsyncRT, threading, arbitrary filesystem, or physical-device execution claim."

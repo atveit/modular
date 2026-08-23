@@ -6,11 +6,14 @@
 #include <unistd.h>
 
 extern int64_t mojo_ios_file_roundtrip(const int8_t *path);
+extern int64_t mojo_ios_environment_roundtrip(void);
 
 int main(void) {
   const char *temporary_directory = getenv("TMPDIR");
   if (!temporary_directory)
     return 10;
+  if (mojo_ios_environment_roundtrip() != 0)
+    return 16;
 
   char path[1024];
   int path_length = snprintf(path, sizeof(path), "%s/mojo-file-%ld.txt",

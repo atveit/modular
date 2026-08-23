@@ -315,14 +315,15 @@ LLVM/MLIR dependencies (`file_status::getSize`, `EnvPathSeparator`, and
 TCMalloc/RuntimeGlobals graph. No AsyncRT subset is therefore wired into the
 iOS runtime until a target-configured LLVM/MLIR toolchain and an intentionally
 extracted shim API exist.
-The first sandbox-file increment is now separately proven. `PrintIOS.cpp`
-supplies only the formatted-print ABI required by the current file lowering,
-without importing desktop `System.cpp`. A real Mojo export uses `open`, writes
-and reads a fixed payload at a caller-owned app `TMPDIR` path, and the C host
-independently verifies and removes the file. The Simulator marker passes and
-the device artifact links with `IOS`/iOS 17 metadata. This is not evidence for
-arbitrary filesystem access, directory traversal, concurrent I/O,
-`initialize_runtime`, AsyncRT, or physical-device execution.
+The first restricted environment/sandbox-file increment is now separately
+proven. `PrintIOS.cpp` supplies only the formatted-print ABI required by the
+current file lowering, without importing desktop `System.cpp`. A real Mojo
+export roundtrips a private value through `setenv`/`getenv`/`unsetenv`, uses
+`open` to write and read a fixed payload at a caller-owned app `TMPDIR` path,
+and lets the C host independently verify and remove the file. The Simulator
+marker passes and the device artifact links with `IOS`/iOS 17 metadata. This is
+not evidence for arbitrary filesystem access, directory traversal, concurrent
+I/O, `initialize_runtime`, AsyncRT, or physical-device execution.
 D11 now has an artifact-only XCFramework, a
 generated local Swift Package metadata and iOS Simulator build, and a separate
 Swift consumer compile/link check for the runtime-free C ABI, covering `ios-arm64` and
