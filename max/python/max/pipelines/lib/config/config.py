@@ -676,6 +676,18 @@ class PipelineConfig(ConfigFileModel):
             ) > 0
             if self.draft_model is None and has_mtp:
                 target_archs[0] = "UnifiedMTPGlmMoeDsaForCausalLM"
+        if target_archs[0] == "InklingForConditionalGeneration":
+            # Inkling bakes chained MTP depths into the target checkpoint.
+            mtp_config = getattr(
+                self.model.huggingface_config, "mtp_config", None
+            )
+            n_mtp = (
+                mtp_config.get("num_nextn_predict_layers")
+                if isinstance(mtp_config, dict)
+                else getattr(mtp_config, "num_nextn_predict_layers", None)
+            )
+            if self.draft_model is None and (n_mtp or 0) > 0:
+                target_archs[0] = "UnifiedMTPInklingForConditionalGeneration"
 
     def _validate_synthetic_acceptance_with_constrained_decoding(self) -> None:
         """Rejects synthetic acceptance when constrained decoding can fire.
@@ -851,6 +863,31 @@ class PipelineConfig(ConfigFileModel):
         self.sampling.structured_output_any_whitespace = (
             DEFAULT_STRUCTURED_OUTPUT_ANY_WHITESPACE
         )
+
+    def _resolve_max_length(self, arch: Any, draft_arch: Any = None) -> None:
+        """Resolves each model's ``max_length`` through its architecture.
+
+        The architecture owns the rule — whether the checkpoint's length is a
+        hard cap or just a default — and it runs here, once. Memory planning
+        may lower the result to fit the device, but only on the plan.
+        """
+        # Capture intent before overwriting: anything that set max_length
+        # since __init__ counts as user-provided.
+        self.model._max_length_user_provided = self.model.max_length is not None
+        self.model.max_length = arch.config.calculate_max_seq_len(
+            self, self.model.huggingface_config, self.model
+        )
+        if draft_arch is not None and self.draft_model is not None:
+            self.draft_model._max_length_user_provided = (
+                self.draft_model.max_length is not None
+            )
+            self.draft_model.max_length = (
+                draft_arch.config.calculate_max_seq_len(
+                    self,
+                    self.draft_model.huggingface_config,
+                    self.draft_model,
+                )
+            )
 
     def _validate_and_resolve_overlap_scheduler(self, arch: Any = None) -> None:
         if not self.runtime.force:
@@ -1114,6 +1151,7 @@ class PipelineConfig(ConfigFileModel):
         self._resolve_default_tool_parser(arch=arch)
         self._resolve_default_structured_output_backend(arch=arch)
         self._resolve_default_structured_output_any_whitespace(arch=arch)
+        self._resolve_max_length(arch=arch, draft_arch=draft_arch)
         self._validate_synthetic_acceptance_with_constrained_decoding()
 
         if (

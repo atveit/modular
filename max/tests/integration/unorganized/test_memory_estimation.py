@@ -26,7 +26,11 @@ from max.nn.comm import Signals
 from max.nn.kv_cache import MHAKVCacheParams, MultiKVCacheParams
 from max.nn.kv_cache.cache_params import KVConnectorType
 from max.pipelines.kv_cache.memory_planner import PagedMemoryPlanner
-from max.pipelines.lib import MemoryEstimator, PipelineRuntimeConfig
+from max.pipelines.lib import (
+    KVCacheConfig,
+    MemoryEstimator,
+    PipelineRuntimeConfig,
+)
 from max.pipelines.lib.interfaces import (
     ArchConfigWithKVCache,
 )
@@ -101,11 +105,6 @@ def test_memory_estimation__raise_oom_error_weights_size_exceeds_available_memor
     None
 ):
     with (
-        patch.object(
-            DummyLlamaPipelineModel,
-            "calculate_max_seq_len",
-            return_value=100000,
-        ),
         patch(
             "max.driver.Device.stats", new_callable=PropertyMock
         ) as device_mock,
@@ -117,13 +116,15 @@ def test_memory_estimation__raise_oom_error_weights_size_exceeds_available_memor
             mock_config = DummyPipelineConfig(
                 model_path="modularai/Llama-3.1-8B-Instruct-GGUF",
                 max_batch_size=None,
-                max_length=None,
+                max_length=4096,
                 device_specs=[],
                 quantization_encoding=DUMMY_LLAMA_ARCH.default_encoding,
             )
 
             devices = load_devices(mock_config.model.device_specs)
-            arch_config = DUMMY_LLAMA_ARCH.config.initialize(mock_config)
+            arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+                mock_config, max_seq_len=mock_config.model.max_length or 4096
+            )
             MemoryEstimator.plan_from_sizes(
                 mock_config,
                 mock_config.model,
@@ -166,7 +167,9 @@ def _estimate(config: DummyPipelineConfig, **kwargs: Any) -> MemoryPlan:
         "max.driver.Device.stats", new_callable=PropertyMock
     ) as device_mock:
         device_mock.return_value = {"free_memory": 100 * GIB}
-        arch_config = DUMMY_LLAMA_ARCH.config.initialize(config)
+        arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+            config, max_seq_len=config.model.max_length or 4096
+        )
         estimate = MemoryEstimator.plan_from_sizes(
             config,
             config.model,
@@ -180,19 +183,18 @@ def _estimate(config: DummyPipelineConfig, **kwargs: Any) -> MemoryPlan:
         return estimate
 
 
-def test_estimate__carries_default_max_length_without_config_write() -> None:
-    """With --max-length unset, the estimate carries the architecture default
-    and the config keeps recording that the user never set one."""
+def test_estimate__requires_resolved_max_length() -> None:
+    """Planning consumes the construction-resolved max_length; it no longer
+    runs the architecture policy, so an unresolved config is an error."""
     config = _dummy_llama_config(max_length=None)
-    estimate = _estimate(config)
-    assert estimate.max_length == 4096
-    assert config.model.max_length is None
+    with pytest.raises(ValueError, match="max_length is unresolved"):
+        _estimate(config)
 
 
 def test_estimate__carries_user_max_length() -> None:
     config = _dummy_llama_config(max_length=512)
     estimate = _estimate(config)
-    assert estimate.max_length == 512
+    assert estimate.planned_max_length == 512
     assert config.model.max_length == 512
 
 
@@ -214,7 +216,7 @@ def test_for_pipeline__defaults_max_batch_total_tokens_when_arch_requires() -> (
         device_mock.return_value = {"free_memory": 100 * GIB}
         config = _dummy_llama_config(max_length=512)
         plan = MemoryEstimator.plan(config, arch)
-        assert plan.max_batch_total_tokens == plan.max_length == 512
+        assert plan.max_batch_total_tokens == plan.planned_max_length == 512
         # The plan carries a user-set cap unchanged instead.
         config = _dummy_llama_config(max_length=512)
         config.runtime.max_batch_total_tokens = 2048
@@ -222,10 +224,10 @@ def test_for_pipeline__defaults_max_batch_total_tokens_when_arch_requires() -> (
         assert plan.max_batch_total_tokens == 2048
 
 
-def test_for_pipeline__publishes_plan_values_onto_config() -> None:
-    """Until readers migrate to the plan, planning publishes its resolved
-    values onto the config in one place, at the end."""
-    config = _dummy_llama_config(max_length=None)
+def test_plan__leaves_config_unchanged() -> None:
+    """Planning resolves effective values onto the plan; the config keeps
+    carrying the construction-resolved ``max_length`` unchanged."""
+    config = _dummy_llama_config(max_length=4096)
     with (
         patch(
             "max.pipelines.lib.memory_estimation.load_devices",
@@ -237,10 +239,128 @@ def test_for_pipeline__publishes_plan_values_onto_config() -> None:
     ):
         device_mock.return_value = {"free_memory": 100 * GIB}
         plan = MemoryEstimator.plan(config, DUMMY_LLAMA_ARCH)
-    assert plan.max_length == 4096
+    assert plan.planned_max_length == 4096
     assert config.model.max_length == 4096
     assert config.runtime.max_batch_total_tokens is None
     assert plan.device_specs == (DeviceSpec.cpu(),)
+
+
+MIB = 1024**2
+
+
+def _overcommitted_llama_config(
+    max_length: int | None,
+) -> DummyPipelineConfig:
+    """A dummy config whose KV byte budget overcommits free device memory.
+
+    The paged KV size is capped at the budget ``free_memory *
+    device_memory_utilization - static``, so with the (unbounded) utilization
+    above 1 the planner's total can exceed free memory -- the only way to
+    reach the shrink-to-fit branch of ``plan_from_sizes``.
+    """
+    config = _dummy_llama_config(max_length=max_length)
+    config.model.kv_cache = KVCacheConfig(device_memory_utilization=1.5)
+    return config
+
+
+def test_shrink_to_fit__runs_for_resolved_default_max_length(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Construction resolves ``model.max_length`` for every config, so
+    planning cannot infer user intent from the field being set; it must read
+    the intent bit captured before resolution. Without ``--max-length``, an
+    oversized default is shrunk on the plan instead of raising an OOM error,
+    and the config keeps the construction-resolved value."""
+    config = _overcommitted_llama_config(max_length=None)
+    # Mirror PipelineConfig._resolve_max_length: intent was captured at
+    # construction (None -> not user provided); the policy value is then
+    # stored on the config.
+    config.model.max_length = 4096
+
+    with patch(
+        "max.driver.Device.stats", new_callable=PropertyMock
+    ) as device_mock:
+        device_mock.return_value = {"free_memory": 64 * MIB}
+        arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+            config, max_seq_len=config.model.max_length or 4096
+        )
+        with caplog.at_level(logging.WARNING):
+            plan = MemoryEstimator.plan_from_sizes(
+                config,
+                config.model,
+                arch_config,
+                [CPU()],
+                10 * MIB,
+                40 * MIB,
+            )
+
+    assert "Truncated model's default max_length" in caplog.text
+    # Budget int(64 MiB * 1.5) - 50 MiB static = 46 MiB -> 23 pages of the
+    # dummy's 2 MiB page -> 23 * 128 tokens.
+    assert plan.planned_max_length == 2944
+    assert config.model.max_length == 4096
+
+
+def test_shrink_to_fit__skipped_for_user_provided_max_length() -> None:
+    """A user-provided ``--max-length`` is a hard cap: planning raises
+    instead of silently shrinking it."""
+    config = _overcommitted_llama_config(max_length=4096)
+
+    with patch(
+        "max.driver.Device.stats", new_callable=PropertyMock
+    ) as device_mock:
+        device_mock.return_value = {"free_memory": 64 * MIB}
+        arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+            config, max_seq_len=config.model.max_length or 4096
+        )
+        with pytest.raises(RuntimeError, match="exceeds available memory"):
+            MemoryEstimator.plan_from_sizes(
+                config,
+                config.model,
+                arch_config,
+                [CPU()],
+                10 * MIB,
+                40 * MIB,
+            )
+
+
+def test_plan__kv_clamp_bounds_plan_not_config() -> None:
+    """The KV-capacity clamp lowers ``planned_max_length``, not the config.
+
+    With 64 MiB of device memory, the KV budget is ``int(0.9 * 64 MiB) - 1000``
+    weight bytes, which holds 28 pages of the dummy's 2 MiB page (2 KV tensors
+    x 4 layers x 128 tokens x 8 heads x 128 head_dim x 2 bytes), so the real
+    clamp computation bounds a request to 28 x 128 = 3584 tokens -- below the
+    construction-resolved 4096 (the model's ``max_position_embeddings``),
+    which stays on the config untouched.
+    """
+    arch = dataclasses.replace(
+        DUMMY_LLAMA_ARCH, requires_max_batch_context_length=True
+    )
+    config = _dummy_llama_config(max_length=4096)
+    with (
+        patch(
+            "max.pipelines.lib.memory_estimation.load_devices",
+            return_value=[CPU()],
+        ),
+        patch(
+            "max.driver.Device.stats", new_callable=PropertyMock
+        ) as device_mock,
+    ):
+        device_mock.return_value = {"free_memory": 64 * 1024 * 1024}
+        plan = MemoryEstimator.plan(config, arch)
+    assert plan.planned_max_length == 3584
+    assert plan.max_batch_total_tokens == 3584
+    assert config.model.max_length == 4096
+    assert config.runtime.max_batch_total_tokens is None
+
+
+def test_estimate__draft_bound_lowers_plan_max_length() -> None:
+    """A draft model's own sequence limit bounds the plan, not the config."""
+    config = _dummy_llama_config(max_length=4096)
+    estimate = _estimate(config, draft_max_seq_len=1500)
+    assert estimate.planned_max_length == 1500
+    assert config.model.max_length == 4096
 
 
 @pytest.mark.skip("TODO: AITLIB-238")
@@ -264,7 +384,9 @@ def test_memory_estimation__raise_oom_error_all_defaults_no_valid_solution() -> 
                 quantization_encoding=DUMMY_LLAMA_ARCH.default_encoding,
             )
             devices = load_devices(mock_config.model.device_specs)
-            arch_config = DUMMY_LLAMA_ARCH.config.initialize(mock_config)
+            arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+                mock_config, max_seq_len=mock_config.model.max_length or 4096
+            )
             MemoryEstimator.plan_from_sizes(
                 mock_config,
                 mock_config.model,
@@ -294,7 +416,9 @@ def test_memory_estimation__raise_oom_error_all_defaults(
                 quantization_encoding=DUMMY_LLAMA_ARCH.default_encoding,
             )
             devices = load_devices(mock_config.model.device_specs)
-            arch_config = DUMMY_LLAMA_ARCH.config.initialize(mock_config)
+            arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+                mock_config, max_seq_len=mock_config.model.max_length or 4096
+            )
             MemoryEstimator.plan_from_sizes(
                 mock_config,
                 mock_config.model,
@@ -327,7 +451,9 @@ def test_memory_estimation__raise_oom_error_max_length_set() -> None:
                 quantization_encoding=DUMMY_LLAMA_ARCH.default_encoding,
             )
             devices = load_devices(mock_config.model.device_specs)
-            arch_config = DUMMY_LLAMA_ARCH.config.initialize(mock_config)
+            arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+                mock_config, max_seq_len=mock_config.model.max_length or 4096
+            )
             MemoryEstimator.plan_from_sizes(
                 mock_config,
                 mock_config.model,
@@ -358,7 +484,9 @@ def test_memory_estimation__raise_oom_error_max_batch_size_set() -> None:
                 quantization_encoding=DUMMY_LLAMA_ARCH.default_encoding,
             )
             devices = load_devices(mock_config.model.device_specs)
-            arch_config = DUMMY_LLAMA_ARCH.config.initialize(mock_config)
+            arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+                mock_config, max_seq_len=mock_config.model.max_length or 4096
+            )
             MemoryEstimator.plan_from_sizes(
                 mock_config,
                 mock_config.model,
@@ -388,7 +516,9 @@ def test_memory_estimation__raise_oom_error_max_batch_size_set_and_max_length_se
                 quantization_encoding=DUMMY_LLAMA_ARCH.default_encoding,
             )
             devices = load_devices(mock_config.model.device_specs)
-            arch_config = DUMMY_LLAMA_ARCH.config.initialize(mock_config)
+            arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+                mock_config, max_seq_len=mock_config.model.max_length or 4096
+            )
             MemoryEstimator.plan_from_sizes(
                 mock_config,
                 mock_config.model,
@@ -494,7 +624,9 @@ def test_estimate_signal_buffer_memory__always_signal_buffers_mixin(
     )
     cfg.model.kv_cache.kv_connector_config.type = kv_connector
 
-    arch_config = DUMMY_LLAMA_ARCH.config.initialize(cfg)
+    arch_config = DUMMY_LLAMA_ARCH.config.initialize(
+        cfg, max_seq_len=cfg.model.max_length or 4096
+    )
     planner_cls = PagedMemoryPlanner.with_activation_reservation(
         0, always_signal_buffers=True
     )
