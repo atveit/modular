@@ -33,6 +33,49 @@ log "compiler sha256: ${compiler_hash}"
 log "stdlib: ${stdlib_path}"
 log "scope: object/symbol manifests only; no link or runtime claim"
 
+assert_exact_manifest() {
+  local probe_name="$1"
+  local manifest_path="$2"
+  local allowed_path="${manifest_path%.txt}.allowed.txt"
+  local allowed_symbols=()
+  case "${probe_name}" in
+    string)
+      allowed_symbols=(
+        _KGEN_CompilerRT_AlignedAlloc _KGEN_CompilerRT_AlignedFree
+        _dup _fclose _fdopen _fflush _memcpy _write
+      )
+      ;;
+    error)
+      allowed_symbols=(
+        _KGEN_CompilerRT_AlignedAlloc _KGEN_CompilerRT_AlignedFree
+        _KGEN_CompilerRT_GetStackTrace
+        _dup _fclose _fdopen _fflush _memcpy _write
+      )
+      ;;
+    global)
+      allowed_symbols=(
+        _KGEN_CompilerRT_AlignedAlloc _KGEN_CompilerRT_AlignedFree
+        _KGEN_CompilerRT_GetOrCreateGlobal
+        _dup _fclose _fdopen _fflush _memcpy _write
+      )
+      ;;
+    environment-file)
+      allowed_symbols=(
+        _KGEN_CompilerRT_AlignedAlloc _KGEN_CompilerRT_AlignedFree
+        _KGEN_CompilerRT_GetStackTrace _KGEN_CompilerRT_fprintf
+        ___error _close _dup _fclose _fdopen _fflush _getenv _lstat
+        _memcpy _mkdir _open _read _setenv _stat _strerror _unsetenv _write
+      )
+      ;;
+    *)
+      fail "no audited allow-list for ${probe_name}"
+      ;;
+  esac
+  printf '%s\n' "${allowed_symbols[@]}" | sort > "${allowed_path}"
+  diff -u "${allowed_path}" "${manifest_path}" || \
+    fail "${probe_name} undefined-symbol contract changed"
+}
+
 emit_probe() {
   local target_label="$1"
   local target_triple="$2"
@@ -53,10 +96,14 @@ emit_probe() {
     -o "${object_path}"
 
   nm -u "${object_path}" | sort | tee "${manifest_path}"
+  if grep -q '^_KGEN_CompilerRT_AsyncRT_' "${manifest_path}"; then
+    fail "${probe_name} unexpectedly depends on AsyncRT"
+  fi
   for expected_symbol in "$@"; do
     grep -qx "${expected_symbol}" "${manifest_path}" || \
       fail "${probe_name} is missing expected symbol: ${expected_symbol}"
   done
+  assert_exact_manifest "${probe_name}" "${manifest_path}"
   file "${object_path}"
   if command -v vtool >/dev/null 2>&1; then
     vtool -show-build "${object_path}" | sed -n '1,40p'
@@ -72,6 +119,11 @@ for target_spec in \
   read -r target_label target_triple target_cpu expected_platform <<<"${target_spec}"
   emit_probe \
     "${target_label}" "${target_triple}" "${target_cpu}" "${expected_platform}" \
+    string "${script_dir}/mojo_ios_runtime_probe.mojo" \
+    _KGEN_CompilerRT_AlignedAlloc \
+    _KGEN_CompilerRT_AlignedFree
+  emit_probe \
+    "${target_label}" "${target_triple}" "${target_cpu}" "${expected_platform}" \
     error "${script_dir}/mojo_ios_error_symbol_probe.mojo" \
     _KGEN_CompilerRT_AlignedAlloc \
     _KGEN_CompilerRT_AlignedFree \
@@ -82,6 +134,19 @@ for target_spec in \
     _KGEN_CompilerRT_AlignedAlloc \
     _KGEN_CompilerRT_AlignedFree \
     _KGEN_CompilerRT_GetOrCreateGlobal
+  emit_probe \
+    "${target_label}" "${target_triple}" "${target_cpu}" "${expected_platform}" \
+    environment-file "${script_dir}/mojo_ios_file_probe.mojo" \
+    _KGEN_CompilerRT_AlignedAlloc \
+    _KGEN_CompilerRT_AlignedFree \
+    _KGEN_CompilerRT_GetStackTrace \
+    _KGEN_CompilerRT_fprintf \
+    _getenv \
+    _open \
+    _read \
+    _setenv \
+    _unsetenv \
+    _write
 done
 
-log 'PASS: both iOS target manifests recorded; symbols identify dependencies, not supported runtime behavior.'
+log 'PASS: serial runtime contracts for both iOS targets contain no AsyncRT dependency.'

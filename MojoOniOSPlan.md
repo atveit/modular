@@ -559,6 +559,11 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
+**Execution progress:** N1 is complete. The allocating String, Error, `_Global`,
+and combined environment/file objects now have exact undefined-symbol
+allow-lists for both iOS triples, and the gate rejects every
+`KGEN_CompilerRT_AsyncRT_*` dependency. N2 is next.
+
 The immediate coding order is N1–N5, while N6–N9 should proceed as a separate
 dependency/toolchain stack. N11 must begin with dependency isolation and may
 run in parallel with those tracks, but N12 cannot be declared complete until

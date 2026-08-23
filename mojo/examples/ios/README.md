@@ -167,19 +167,19 @@ linking, libc-output correctness, or execution on Simulator/device.
 
 ## Narrow stdlib runtime symbol manifests
 
-`run_stdlib_runtime_symbol_manifests.sh` emits—not links—two small probes for
-both arm64 iOS triples: `Error` construction/formatting and lazy `std.ffi._Global`
-storage. It records the undefined symbols and checks the expected dependency
-surface (`KGEN_CompilerRT_GetStackTrace` for the error probe and
-`KGEN_CompilerRT_GetOrCreateGlobal` for the global probe, plus allocation/free).
+`run_stdlib_runtime_symbol_manifests.sh` emits—not links—four serial probes for
+both arm64 iOS triples: allocating `String`, `Error` construction/formatting,
+lazy `std.ffi._Global` storage, and the combined environment/file fixture. It
+compares each complete undefined-symbol manifest with an audited allow-list and
+fails if any `KGEN_CompilerRT_AsyncRT_*` symbol appears.
 
 ```sh
 mojo/examples/ios/run_stdlib_runtime_symbol_manifests.sh
 ```
 
-These are dependency manifests only. They do not validate ABI signatures,
-thread safety, global lifetime, error behavior, static-runtime contents,
-linking, or runtime execution.
+These are dependency manifests only. They prove the current N1 serial lowering
+boundary, but do not validate ABI signatures, thread safety, global lifetime,
+error behavior, static-runtime contents, linking, or runtime execution.
 
 For this C-ABI fixture, `mojo build --emit exe` is not an iOS linker probe: it
 intentionally has no `main`, so the driver stops with `module does not contain
