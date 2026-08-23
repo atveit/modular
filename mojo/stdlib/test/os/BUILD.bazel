@@ -13,6 +13,7 @@ _GPU_FILECHECK_TESTS = [
 
 _LIT_TESTS = [
     "test_no_trap.mojo",
+    "test_process_ios_compile_fail.mojo",
     "path/test_islink.mojo",
 ]
 

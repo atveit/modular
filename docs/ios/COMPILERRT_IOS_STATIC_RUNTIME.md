@@ -167,13 +167,17 @@ static runtime.
 
 The first D6 code change now has explicit source groups, separate target-correct
 Bazel archives for Simulator and device, SDK allocator/core-seed link actions,
-Simulator execution for the bounded core seed and sandbox-file roundtrip, and a
+Simulator execution for the bounded core seed and the N4 serial stdlib matrix,
+and a
 versioned `initialize_runtime()` undefined-symbol manifest. Source audit shows
 that `initialize_runtime()` initializes only the AsyncRT CPU-device/worker
 runtime; it is not required by the demonstrated serial allocation, String,
-Error, environment, or file paths. D6 therefore remains incomplete on serial
-runtime hardening, broader filesystem/system coverage, global concurrency, and
-canonical packaging—not on AsyncRT. Repeated public runtime initialization and
-threading are D7 gates. Both milestones must preserve the existing macOS/Linux
+Error, environment, or file paths. N4 covers formatting/output, collections,
+clock, errno/Error, paths, restricted environment, nested sandbox directories,
+and ordinary files; all 38 top-level packages also have compile-only import
+coverage and process spawning has an explicit iOS compile-time diagnostic.
+D6 remains incomplete on ABI/dead-strip hardening and canonical packaging—not
+on AsyncRT. Repeated public runtime initialization and threading are later
+AsyncRT gates. Both tracks must preserve the existing macOS/Linux
 `CompilerRT` target and make unsupported runtime features fail clearly rather
 than silently loading the desktop shared library.

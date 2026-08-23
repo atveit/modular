@@ -151,7 +151,9 @@ allocator-only D6 probe; the full iOS static CompilerRT still does not exist.
 
 `run_stdlib_compile_coverage.sh` emits LLVM only for the arm64 iOS Simulator
 and device triples from a small source that constructs explicit SIMD values and
-uses math, Darwin errno, `perf_counter_ns`, and formatted `print` output.
+uses math, Darwin errno, `perf_counter_ns`, and formatted `print` output. It
+also imports all 38 top-level stdlib packages as a compile-only inventory and
+requires `Process.run` to fail with the explicit iOS sandbox diagnostic.
 
 ```sh
 MOJO_BIN=bazel-bin/KGEN/tools/mojo/mojo-full \
@@ -162,8 +164,9 @@ MOJO_STDLIB_PATH=mojo/stdlib \
 It checks the emitted C ABI export plus Darwin `__error` and
 `clock_gettime_nsec_np` declarations, `write` output lowering, and the
 formatting/output fixture's CompilerRT dependency. This is compile evidence
-only: it does not establish SIMD code quality, successful static-runtime
-linking, libc-output correctness, or execution on Simulator/device.
+only: importing a package does not make its APIs supported, and this gate does
+not establish SIMD code quality, successful static-runtime linking, or
+execution on Simulator/device.
 
 ## Narrow stdlib runtime symbol manifests
 
@@ -608,10 +611,10 @@ implemented. They are target-correct build artifacts, not a claim of
 `initialize_runtime`, AsyncRT, physical-device execution, or a production
 CompilerRT package.
 
-The next bounded D6 increment exercises Mojo's standard-library file API with
-an app-owned sandbox path. It adds the libc-only `PrintIOS.cpp` forwarding ABI
-to the same target-correct core seed, emits one Mojo function using `open`,
-`FileHandle.write_bytes`, and `FileHandle.read`, and checks both platform
+The N4 serial-stdlib gate exercises formatting/output, `List`, a monotonic
+clock, errno/Error handling, path joining, a private environment value, nested
+directory creation, and ordinary files under an app-owned sandbox path. It
+uses the libc-only `PrintIOS.cpp` forwarding ABI and checks both platform
 variants:
 
 ```sh
@@ -619,14 +622,13 @@ RUN_SIMULATOR=1 MOJO_IOS_FILE_PROBE_OUT="$(mktemp -d)" \
   mojo/examples/ios/run_compilerrt_ios_file_probe.sh
 ```
 
-The same Mojo object also roundtrips a private environment value through
-`setenv`, `getenv`, and `unsetenv`. The Simulator C consumer supplies a path
-under `TMPDIR`, calls Mojo, then independently reads and compares the bytes
-before removing the file. The device variant is compile/link/metadata evidence
-only. This proves process-local environment access and one ordinary-file
-roundtrip inside the application sandbox; it does not claim arbitrary path
-access, directory semantics, concurrent I/O, `initialize_runtime`, AsyncRT, or
-physical-device execution.
+The Simulator C consumer supplies a nested path under `TMPDIR`, calls Mojo,
+then independently reads and compares the bytes and removes the complete
+directory tree. It also requires Mojo's formatted stdout marker. The device
+variant is compile/link/metadata evidence only. This proves the listed serial
+operations inside the application sandbox; it does not claim arbitrary path
+access, concurrent I/O, `initialize_runtime`, AsyncRT, or physical-device
+execution.
 
 The current `initialize_runtime`/AsyncRT boundary has a checked-in discovery
 gate:

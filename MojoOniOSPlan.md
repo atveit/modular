@@ -559,7 +559,7 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1–N3 are complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1–N4 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
 `KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
@@ -568,8 +568,12 @@ and archive-level forbidden symbol-family checks. `GlobalsIOS.cpp` now uses one
 recursive mutex for creation, lookup, insertion, and teardown and passes 64
 Simulator teardown/recreation rounds with eight concurrent native threads.
 The implementation is deliberately not lock-free; the current host Thread
-Sanitizer runtime exited before the test body, so no TSan claim is made. N4 is
-next.
+Sanitizer runtime exited before the test body, so no TSan claim is made. N4
+adds a real Simulator serial-stdlib matrix and device link artifact covering
+formatting/output, collections, clocks, errno/Error behavior, paths, restricted
+environment access, nested sandbox directories, and ordinary files. All 38
+top-level stdlib packages have compile-only coverage for both iOS triples, and
+process spawning now has an explicit iOS compile-time diagnostic. N5 is next.
 
 The immediate coding order is N1–N5, while N6–N9 should proceed as a separate
 dependency/toolchain stack. N11 must begin with dependency isolation and may

@@ -63,7 +63,7 @@ assert_exact_manifest() {
       allowed_symbols=(
         _KGEN_CompilerRT_AlignedAlloc _KGEN_CompilerRT_AlignedFree
         _KGEN_CompilerRT_GetStackTrace _KGEN_CompilerRT_fprintf
-        ___error _close _dup _fclose _fdopen _fflush _getenv _lstat
+        ___error _clock_gettime_nsec_np _close _dup _fclose _fdopen _fflush _getenv _lstat
         _memcpy _mkdir _open _read _setenv _stat _strerror _unsetenv _write
       )
       ;;
@@ -141,6 +141,7 @@ for target_spec in \
     _KGEN_CompilerRT_AlignedFree \
     _KGEN_CompilerRT_GetStackTrace \
     _KGEN_CompilerRT_fprintf \
+    _clock_gettime_nsec_np \
     _getenv \
     _open \
     _read \

@@ -50,6 +50,36 @@ build_target() {
   grep -q '@write' "${output_path}" || fail "libc output lowering is absent: ${output_path}"
   grep -E '^(define|declare).*@(mojo_ios_stdlib_compile_coverage|__error|clock_gettime_nsec_np|KGEN_CompilerRT_AlignedFree|write)' "${output_path}"
   log "PASS: compile-only evidence recorded at ${output_path}"
+
+  local inventory_path="${output_root}/${label}-package-inventory.ll"
+  log "compiling every top-level stdlib package for ${target_triple}"
+  "${mojo_path}" build \
+    --target-triple "${target_triple}" \
+    --target-cpu "${target_cpu}" \
+    -I "${stdlib_path}" \
+    --emit llvm \
+    "${script_dir}/mojo_ios_stdlib_package_inventory.mojo" \
+    -o "${inventory_path}"
+  [[ -s "${inventory_path}" ]] || fail "package inventory output is missing: ${inventory_path}"
+  grep -q '@mojo_ios_stdlib_package_inventory' "${inventory_path}" || fail "package inventory export is absent"
+
+  local unsupported_log="${output_root}/${label}-unsupported-process.log"
+  if "${mojo_path}" build \
+    --target-triple "${target_triple}" \
+    --target-cpu "${target_cpu}" \
+    -I "${stdlib_path}" \
+    --emit llvm \
+    "${script_dir}/mojo_ios_unsupported_process_probe.mojo" \
+    -o "${output_root}/${label}-unsupported-process.ll" \
+    >"${unsupported_log}" 2>&1; then
+    fail "iOS process-spawn probe unexpectedly compiled"
+  fi
+  grep -q 'Current compilation target does not support operation: process execution' "${unsupported_log}" || {
+    cat "${unsupported_log}" >&2
+    fail "explicit iOS process-spawn diagnostic is absent"
+  }
+  grep -q 'iOS applications cannot spawn subprocesses' "${unsupported_log}" || fail "iOS sandbox note is absent"
+  log "PASS: iOS process spawning is rejected at compile time"
 }
 
 build_target simulator arm64-apple-ios17.0-simulator apple-m1

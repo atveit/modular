@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Compile/link a real Mojo stdlib file roundtrip against the bounded iOS core
-# seed for Simulator and device. Simulator execution is explicit opt-in.
+# Compile/link real Mojo serial stdlib roundtrips against the bounded iOS core
+# for Simulator and device. Simulator execution is explicit opt-in.
 
 set -euo pipefail
 
@@ -66,6 +66,9 @@ build_platform() {
   nm -u "${mojo_object}" | grep -qx _getenv || fail "Darwin getenv dependency missing"
   nm -u "${mojo_object}" | grep -qx _setenv || fail "Darwin setenv dependency missing"
   nm -u "${mojo_object}" | grep -qx _unsetenv || fail "Darwin unsetenv dependency missing"
+  nm -u "${mojo_object}" | grep -qx _clock_gettime_nsec_np || fail "Darwin monotonic clock dependency missing"
+  nm -u "${mojo_object}" | grep -qx _mkdir || fail "Darwin nested-directory dependency missing"
+  ! nm -u "${mojo_object}" | grep -q 'KGEN_CompilerRT_AsyncRT_' || fail "serial probe acquired AsyncRT"
 
   "${clang_bin}" -target "${target_triple}" -isysroot "${sdk_path}" \
     "${minimum_os_flag}" -arch arm64 \
@@ -103,5 +106,6 @@ xcrun simctl bootstatus "${device_udid}" -b
 xcrun simctl install "${device_udid}" "${app_path}"
 xcrun simctl launch --console "${device_udid}" "${app_id}" | tee "${output_root}/simulator/launch.log"
 grep -qx 'MOJO_COMPILERRT_FILE_ROUNDTRIP_PASS' "${output_root}/simulator/launch.log" || fail "missing file roundtrip marker"
-log "PASS: Mojo roundtripped an environment value and an app-sandbox temporary file in Simulator"
+grep -qx 'MOJO_IOS_SERIAL_STDLIB_OUTPUT_PASS' "${output_root}/simulator/launch.log" || fail "missing serial stdlib output marker"
+log "PASS: Mojo exercised formatting/output, collections, clock, errno/Error, paths, environment, nested sandbox directories, and an ordinary file in Simulator"
 log "No initialize_runtime, AsyncRT, threading, arbitrary filesystem, or physical-device execution claim."

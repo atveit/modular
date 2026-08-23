@@ -387,9 +387,15 @@ struct Process:
             Error: If the process fails to spawn.
         """
 
-        comptime assert (
-            CompilationTarget.is_linux() or CompilationTarget.is_macos()
-        ), "Unknown platform process execution not implemented"
+        comptime if CompilationTarget.is_ios():
+            CompilationTarget.unsupported_target_error[
+                operation="process execution",
+                note="iOS applications cannot spawn subprocesses",
+            ]()
+        else:
+            comptime assert (
+                CompilationTarget.is_linux() or CompilationTarget.is_macos()
+            ), "Unknown platform process execution not implemented"
         var parts = path.split(sep)
         var file_name = String(parts[len(parts) - 1])
 
