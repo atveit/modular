@@ -4,7 +4,7 @@
 and the direct SwiftUI Simulator launch are demonstrated; the canonical Bazel
 `rules_apple`/`rules_swift` + XCTest gate and physical signing/launch remain
 staged work
-**Evidence last verified:** August 22, 2026
+**Evidence last verified:** August 23, 2026
 **Initial deployment baseline:** iOS and iPadOS 17
 
 ## Summary
@@ -118,6 +118,36 @@ decisions rely on them.
 
 Temporary smoke tests are encouraged during discovery. They need not be checked
 in unless they become stable regression tests, samples, or build-system fixtures.
+
+### Post-upstream rebaseline — August 23, 2026
+
+The fork was merged with 71 upstream commits through `10d978e3c7` and pushed
+to `Atveit/modular:main`. The merge preserved both histories; 169 fork-only
+paths were compared as Git tree entries with zero mismatches. The merged
+`//KGEN:mojo` source build, focused KGEN/iOS tests, upstream compiler-timing
+tests, static-library tests, Simulator launch, SwiftUI screenshot, core-seed
+probe, XCFramework, Swift Package, and dual-SDK sysroot diagnostics pass.
+
+The upstream language update removed `fn`; the fork's static-library lit test
+was updated to `def`. The new pass-timing plumbing overlapped
+`mojo-build.cpp` and was combined with, rather than substituted for, the
+fork's `--emit static-lib` and iOS diagnostics. No other fork-only path needed
+an integration edit.
+
+The runtime plan changes only in sequencing, not architecture:
+
+- D6 now has separate Bazel-produced Simulator and device core-seed archives
+  built from `MemoryIOS.cpp`, `Initialize.cpp`, `GlobalsIOS.cpp`, and
+  `StackTraceIOS.cpp`. The Simulator archive runs real emitted-Mojo global and
+  Error probes; the device archive passes artifact/link metadata gates.
+- The post-merge public `std.runtime.initialize_runtime()` object still calls
+  `GetCurrentCPUDevice`, `GetOrCreateCPUDevice`, `ReleaseCPUDevice`, and
+  `GetOrCreateGlobal`. Upstream did not remove the AsyncRT/thread-pool/allocator
+  dependency boundary.
+- The root `rules_apple`/`rules_swift` and Apple C++ toolchain migration remains
+  unresolved. Until that dependency-owner work is approved, the target-correct
+  CompilerRT archive actions remain explicit local Xcode diagnostics and D6 is
+  prioritized over additional framework breadth.
 
 ## Support Contract
 

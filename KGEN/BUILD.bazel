@@ -943,18 +943,21 @@ modular_cc_library(
 
 modular_shared_library(
     name = "CompilerRT",
-    srcs = glob([
-        "lib/CompilerRT/*.cpp",
-        "lib/CompilerRT/*.h",
-    ], exclude = [
-        # The iOS-only libc allocator must not enter the desktop shared DSO.
-        "lib/CompilerRT/MemoryIOS.cpp",
-        # The experimental iOS global-table candidate is not part of the
-        # desktop shared runtime; it is compiled only by its SDK fixture.
-        "lib/CompilerRT/GlobalsIOS.cpp",
-        # The iOS no-stack-trace ABI candidate is likewise SDK-fixture-only.
-        "lib/CompilerRT/StackTraceIOS.cpp",
-    ]),
+    srcs = glob(
+        [
+            "lib/CompilerRT/*.cpp",
+            "lib/CompilerRT/*.h",
+        ],
+        exclude = [
+            # The iOS-only libc allocator must not enter the desktop shared DSO.
+            "lib/CompilerRT/MemoryIOS.cpp",
+            # The experimental iOS global-table candidate is not part of the
+            # desktop shared runtime; it is compiled only by its SDK fixture.
+            "lib/CompilerRT/GlobalsIOS.cpp",
+            # The iOS no-stack-trace ABI candidate is likewise SDK-fixture-only.
+            "lib/CompilerRT/StackTraceIOS.cpp",
+        ],
+    ),
     hdrs = glob([
         "include/KGEN/CompilerRT/*.h",
     ]),
@@ -1041,6 +1044,22 @@ filegroup(
         "lib/CompilerRT/Initialize.cpp",
         "lib/CompilerRT/MemoryIOS.cpp",
         "lib/CompilerRT/Support.cpp",
+    ],
+    visibility = ["//mojo/examples/ios:__pkg__"],
+)
+
+# Source-only access for the bounded non-AsyncRT iOS core seed. Unlike the
+# bootstrap group above, this selects the iOS global and no-stack-trace
+# implementations that have emitted-Mojo Simulator and device-link evidence.
+# It is still not a complete runtime: AsyncRT and initialize_runtime support
+# remain deliberately excluded.
+filegroup(
+    name = "CompilerRTIOSCoreSeedSources",
+    srcs = [
+        "lib/CompilerRT/GlobalsIOS.cpp",
+        "lib/CompilerRT/Initialize.cpp",
+        "lib/CompilerRT/MemoryIOS.cpp",
+        "lib/CompilerRT/StackTraceIOS.cpp",
     ],
     visibility = ["//mojo/examples/ios:__pkg__"],
 )

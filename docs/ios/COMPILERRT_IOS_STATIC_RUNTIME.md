@@ -36,6 +36,13 @@ macOS dynamic runtime into an iOS app.
   source-list seed. Its `MemoryIOS.cpp` member is libc-only and is compiled
   against the iPhoneSimulator SDK by the link diagnostic; the Bazel archive
   itself is a host build artifact and must not be treated as an iOS archive.
+- `//KGEN:CompilerRTIOSCoreSeedSources` selects `MemoryIOS.cpp`,
+  `Initialize.cpp`, `GlobalsIOS.cpp`, and `StackTraceIOS.cpp`. The two
+  example-local Bazel targets compile that source group with the matching
+  iPhoneSimulator or iPhoneOS SDK and produce distinct target-correct archives.
+  The Simulator archive has run with real emitted-Mojo global and Error probes;
+  the device archive has passed the same link and metadata checks without
+  signing or execution.
 
 ## Candidate first static target
 
@@ -45,9 +52,10 @@ The explicit target avoids reusing the shared-library glob. It is named
 | Component | Initial status | Reason |
 |---|---|---|
 | `Initialize.cpp` | Include | Idempotent runtime registration symbol |
-| `Globals.cpp` | Include after iOS ABI check | Mojo globals and teardown; validate locking and process lifetime |
+| `Globals.cpp` | Replace in the bounded core seed | `GlobalsIOS.cpp` supplies the required named/indexed ABI without desktop `GlobalTable`; contention and concurrent teardown remain under review |
 | `Memory.cpp` | Replaced for first probe | `MemoryIOS.cpp` provides only `posix_memalign`/`free` entry points; the desktop TCMalloc implementation remains out of the iOS target |
-| `Support.cpp` | Include | bfloat conversion helpers; verify libc/compiler builtins on both SDKs |
+| `Support.cpp` | Defer from the bounded core seed | The existing bootstrap probe compiles its bfloat helpers, but current emitted global/Error probes do not require them |
+| `StackTraceIOS.cpp` | Include in bounded core seed | Implements the Error ABI's explicit “stack trace unavailable” path without desktop signal/configuration support |
 | System/printing | Small explicit subset | Keep only symbols required by the supported stdlib; avoid environment/configuration and global fault handlers initially |
 | AsyncRT | Later D6/D7 increment | Required for `initialize_runtime()`, async, and threading; add only after a static CPUDevice dependency graph is isolated |
 | Python, JIT, compiler services | Exclude | Not part of an app runtime |
@@ -117,9 +125,10 @@ do not substitute an installed nightly silently.
 
 ## Link and Simulator gates
 
-The explicit target is now present, and a small C-ABI fixture links one Mojo
-object with the SDK-compiled allocator slice (plus an optional proposed full
-archive) using Xcode clang.
+The explicit source groups are now present. A small C-ABI fixture links one
+Mojo object with the SDK-compiled allocator slice, and the bounded core-seed
+fixture links emitted Mojo global and Error objects against Bazel-produced
+Simulator and device archives using Xcode clang.
 The first gate should inspect all of the following:
 
 1. `ar -t` contains the intended runtime objects and no desktop-only object.
@@ -128,10 +137,10 @@ The first gate should inspect all of the following:
 3. `vtool -show-build` reports `IOS` or `IOSSIMULATOR` with the requested
    minimum OS, and `otool -L` contains only SDK/framework dependencies allowed
    by the fixture.
-4. The current gate proves allocation-symbol resolution, final Mach-O metadata,
-   and—when `RUN_SIMULATOR=1`—the allocator/owned-String lifetime marker on
-   Simulator. It still does not exercise `initialize_runtime()`, an error path,
-   repeated initialization, or AsyncRT. Those remain later increments.
+4. The allocator gate proves allocation-symbol resolution and the owned-String
+   lifetime marker. The core-seed gate additionally proves basic global
+   lifecycle and Error construction with stack traces unavailable. Neither
+   invokes `initialize_runtime()`, repeated initialization, or AsyncRT.
 5. `codesign --verify` and `simctl install/launch` validate the app bundle;
    physical-device signing and launch remain a later D5/D6 gate.
 
@@ -151,10 +160,11 @@ static runtime.
 
 ## Exit criteria for D6 implementation
 
-The first D6 code change now has an explicit Bazel target/source list, an iOS
-SDK allocator compile/link action, and a versioned undefined-symbol manifest.
-It is ready for the next review increment, but the D6 phase is not complete:
-Simulator execution, repeated initialization, broader globals/system support,
-and AsyncRT/threading remain required. It must preserve the existing
+The first D6 code change now has explicit source groups, separate target-correct
+Bazel archives for Simulator and device, SDK allocator/core-seed link actions,
+Simulator execution for the bounded core seed, and a versioned
+`initialize_runtime()` undefined-symbol manifest. D6 remains incomplete:
+repeated initialization, broader system/file support, AsyncRT/threading, and
+physical-device execution are still required. It must preserve the existing
 macOS/Linux `CompilerRT` target and make unsupported runtime features fail
 clearly rather than silently loading the desktop shared library.

@@ -1,7 +1,11 @@
-package(default_visibility = ["//visibility:public"])
-
-load(":compilerrt_ios_bootstrap_archive.bzl", "compilerrt_ios_simulator_bootstrap_archive")
+load(
+    ":compilerrt_ios_bootstrap_archive.bzl",
+    "compilerrt_ios_simulator_bootstrap_archive",
+    "compilerrt_ios_static_archive",
+)
 load(":mojo_ios_static_library.bzl", "mojo_ios_static_library")
+
+package(default_visibility = ["//visibility:public"])
 
 # This is intentionally a source fixture rather than a runnable Bazel iOS
 # target.  The repository does not yet register rules_apple/rules_swift, and
@@ -11,53 +15,54 @@ load(":mojo_ios_static_library.bzl", "mojo_ios_static_library")
 filegroup(
     name = "ios_simulator_smoke_fixture",
     srcs = [
-        "Info.plist",
         "APPLE_FRAMEWORK_COVERAGE.md",
-        "README.md",
+        "Info.plist",
         "MojoIOSSmokeXCFrameworkConsumer.swift",
+        "README.md",
+        "check_compilerrt_ios_static_metadata.sh",
+        "compilerrt_core_seed_probe_main.c",
+        "compilerrt_error_probe_main.c",
+        "compilerrt_globals_ios_candidate_main.cpp",
+        "compilerrt_globals_link_boundary_main.c",
+        "compilerrt_globals_mojo_probe_main.c",
+        "compilerrt_ios_bootstrap_archive.bzl",
+        "mojo_ios_error_symbol_probe.mojo",
+        "mojo_ios_global_symbol_probe.mojo",
+        "mojo_ios_runtime_init_probe.mojo",
         "mojo_ios_runtime_probe.h",
         "mojo_ios_runtime_probe.mojo",
         "mojo_ios_simd_assembly_probe.mojo",
-        "mojo_ios_runtime_init_probe.mojo",
-        "mojo_ios_stdlib_compile_coverage.mojo",
-        "mojo_ios_error_symbol_probe.mojo",
-        "mojo_ios_global_symbol_probe.mojo",
         "mojo_ios_smoke.h",
         "mojo_ios_smoke.mojo",
-        "compilerrt_ios_bootstrap_archive.bzl",
-        "compilerrt_globals_link_boundary_main.c",
-        "compilerrt_globals_ios_candidate_main.cpp",
-        "compilerrt_globals_mojo_probe_main.c",
-        "compilerrt_error_probe_main.c",
-        "compilerrt_core_seed_probe_main.c",
         "mojo_ios_static_library.bzl",
-        "run_pinned_mojo_air_diagnostic.sh",
-        "check_compilerrt_ios_static_metadata.sh",
-        "run_runtime_initialize_symbol_manifest.sh",
-        "run_compilerrt_ios_bootstrap_archive_probe.sh",
-        "run_compilerrt_ios_globals_link_boundary.sh",
-        "run_compilerrt_ios_globals_ios_candidate.sh",
-        "run_compilerrt_ios_globals_mojo_probe.sh",
-        "run_compilerrt_ios_error_probe.sh",
-        "run_compilerrt_ios_core_seed_probe.sh",
+        "mojo_ios_stdlib_compile_coverage.mojo",
         "run_asyncrt_ios_compile_blocker.sh",
+        "run_bazel_compilerrt_ios_core_seed_probe.sh",
+        "run_compilerrt_ios_bootstrap_archive_probe.sh",
+        "run_compilerrt_ios_core_seed_probe.sh",
+        "run_compilerrt_ios_error_probe.sh",
+        "run_compilerrt_ios_globals_ios_candidate.sh",
+        "run_compilerrt_ios_globals_link_boundary.sh",
+        "run_compilerrt_ios_globals_mojo_probe.sh",
+        "run_device_smoke.sh",
+        "run_device_swiftui.sh",
+        "run_pinned_mojo_air_diagnostic.sh",
+        "run_runtime_initialize_symbol_manifest.sh",
         "run_simd_assembly_probe.sh",
+        "run_simulator_smoke.sh",
         "run_static_lib_emission_probe.sh",
         "run_static_runtime_link_probe.sh",
         "run_stdlib_compile_coverage.sh",
         "run_stdlib_runtime_symbol_manifests.sh",
         "run_xcframework_smoke.sh",
         "runtime_probe_main.c",
-        "run_device_smoke.sh",
-        "run_device_swiftui.sh",
-        "run_simulator_smoke.sh",
         "smoke_main.c",
-        "//mojo/examples/ios/swiftui_host:swiftui_host_fixture",
         "//mojo/examples/ios/accelerate_adapter:accelerate_adapter_fixture",
-        "//mojo/examples/ios/coregraphics_adapter:coregraphics_adapter_fixture",
         "//mojo/examples/ios/corefoundation_adapter:corefoundation_adapter_fixture",
+        "//mojo/examples/ios/coregraphics_adapter:coregraphics_adapter_fixture",
         "//mojo/examples/ios/foundation_adapter:foundation_adapter_fixture",
         "//mojo/examples/ios/os_signpost_adapter:os_signpost_adapter_fixture",
+        "//mojo/examples/ios/swiftui_host:swiftui_host_fixture",
         "//mojo/examples/ios/uikit_adapter:uikit_adapter_fixture",
     ],
 )
@@ -77,9 +82,9 @@ mojo_ios_static_library(
     header = "mojo_ios_smoke.h",
     platform = "IOS",
     sdk_name = "iphoneos",
+    tags = ["manual"],
     target_cpu = "apple-a7",
     target_triple = "arm64-apple-ios17.0",
-    tags = ["manual"],
 )
 
 # Diagnostic archive only. This recompiles explicit sources with Xcode's
@@ -87,7 +92,49 @@ mojo_ios_static_library(
 compilerrt_ios_simulator_bootstrap_archive(
     name = "compilerrt_ios_simulator_bootstrap_archive_diagnostic",
     srcs = ["//KGEN:CompilerRTIOSBootstrapSources"],
-    tags = ["manual", "requires-xcode"],
+    tags = [
+        "manual",
+        "requires-xcode",
+    ],
+)
+
+_IOS_CORE_SEED_SYMBOLS = [
+    "_KGEN_CompilerRT_AlignedAlloc",
+    "_KGEN_CompilerRT_AlignedFree",
+    "_KGEN_CompilerRT_DestroyGlobals",
+    "_KGEN_CompilerRT_GetGlobalOrNull",
+    "_KGEN_CompilerRT_GetOrCreateGlobal",
+    "_KGEN_CompilerRT_GetOrCreateGlobalIndexed",
+    "_KGEN_CompilerRT_GetStackTrace",
+    "_KGEN_CompilerRT_Initialize",
+    "_KGEN_CompilerRT_InsertGlobal",
+]
+
+# Bounded non-AsyncRT core seed used by the emitted-Mojo global/Error probe.
+# Both archives are compiled from source with the matching Xcode SDK; neither
+# repackages the host-built //KGEN:CompilerRTIOSStatic output.
+compilerrt_ios_static_archive(
+    name = "compilerrt_ios_core_seed_simulator_archive",
+    srcs = ["//KGEN:CompilerRTIOSCoreSeedSources"],
+    expected_symbols = _IOS_CORE_SEED_SYMBOLS,
+    tags = [
+        "manual",
+        "requires-xcode",
+    ],
+)
+
+compilerrt_ios_static_archive(
+    name = "compilerrt_ios_core_seed_device_archive",
+    srcs = ["//KGEN:CompilerRTIOSCoreSeedSources"],
+    expected_symbols = _IOS_CORE_SEED_SYMBOLS,
+    minimum_os_flag = "-miphoneos-version-min=17.0",
+    platform = "IOS",
+    sdk_name = "iphoneos",
+    tags = [
+        "manual",
+        "requires-xcode",
+    ],
+    target_triple = "arm64-apple-ios17.0",
 )
 
 exports_files([
@@ -120,6 +167,7 @@ exports_files([
     "run_compilerrt_ios_error_probe.sh",
     "run_compilerrt_ios_core_seed_probe.sh",
     "run_asyncrt_ios_compile_blocker.sh",
+    "run_bazel_compilerrt_ios_core_seed_probe.sh",
     "run_simd_assembly_probe.sh",
     "run_static_lib_emission_probe.sh",
     "run_static_runtime_link_probe.sh",

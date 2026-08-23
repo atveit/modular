@@ -9,6 +9,7 @@ repo_root="$(cd "${script_dir}/../../.." && pwd)"
 mojo_bin="${MOJO_BIN:-${repo_root}/bazel-bin/KGEN/tools/mojo/mojo-full}"
 stdlib_path="${MOJO_STDLIB_PATH:-${repo_root}/mojo/stdlib}"
 output_root="${MOJO_IOS_CORE_SEED_PROBE_OUT:-${repo_root}/bazel-out/ios-core-seed-probe}"
+archive_override="${MOJO_IOS_CORE_SEED_ARCHIVE:-}"
 bazel_wrapper="${repo_root}/bazelw"
 requested_platform="${MOJO_IOS_CORE_SEED_PLATFORM:-simulator}"
 
@@ -20,13 +21,6 @@ fail() { log "ERROR: $*" >&2; exit 1; }
 [[ -x "${bazel_wrapper}" ]] || fail "bazelw is required"
 command -v xcrun >/dev/null 2>&1 || fail "xcrun is required"
 mkdir -p "${output_root}"
-
-"${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSStatic
-exec_root="$("${bazel_wrapper}" info --config=build-mojo execution_root)"
-bazel_bin="$("${bazel_wrapper}" info --config=build-mojo bazel-bin)"
-llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"
-llvm_generated_include="${bazel_bin}/external/+llvm_configure+llvm-project/llvm/include"
-[[ -d "${llvm_source_include}" && -d "${llvm_generated_include}" ]] || fail "missing LLVM headers"
 
 case "${requested_platform}" in
   simulator)
@@ -52,21 +46,60 @@ sdk_path="$(xcrun --sdk "${sdk_name}" --show-sdk-path)"
 clang_bin="$(xcrun --sdk "${sdk_name}" --find clang)"
 clangxx_bin="$(xcrun --sdk "${sdk_name}" --find clang++)"
 libtool_bin="$(xcrun --sdk "${sdk_name}" --find libtool)"
-common_flags=(-target "${target_triple}" -isysroot "${sdk_path}"
-  "${minimum_os_flag}" -arch arm64 -std=c++20
-  -DMODULAR_BUILDING_COMPILERRT -I"${repo_root}/Support/include"
-  -isystem "${llvm_source_include}" -isystem "${llvm_generated_include}")
+ar_bin="$(xcrun --find ar)"
 
-sources=(MemoryIOS.cpp Initialize.cpp GlobalsIOS.cpp StackTraceIOS.cpp)
-objects=()
-for source in "${sources[@]}"; do
-  object_path="${output_root}/${source%.cpp}.o"
-  "${clangxx_bin}" "${common_flags[@]}" -c "${repo_root}/KGEN/lib/CompilerRT/${source}" -o "${object_path}"
-  vtool -show-build "${object_path}" | grep -q "platform ${expected_platform}" || fail "wrong platform: ${source}"
-  objects+=("${object_path}")
-done
-archive_path="${output_root}/libKGENCompilerRTIOSCoreSeedCandidate.a"
-"${libtool_bin}" -static -o "${archive_path}" "${objects[@]}"
+if [[ -n "${archive_override}" ]]; then
+  [[ -f "${archive_override}" ]] || fail "MOJO_IOS_CORE_SEED_ARCHIVE is unavailable: ${archive_override}"
+  archive_dir="$(cd "$(dirname "${archive_override}")" && pwd)"
+  archive_path="${archive_dir}/$(basename "${archive_override}")"
+  members_dir="$(mktemp -d "${output_root}/archive-members.XXXXXX")"
+  (
+    cd "${members_dir}"
+    "${ar_bin}" -x "${archive_path}"
+  )
+  member_count=0
+  while IFS= read -r -d '' member; do
+    vtool -show-build "${member}" | grep -q "platform ${expected_platform}" || fail "wrong archive-member platform: ${member}"
+    member_count=$((member_count + 1))
+  done < <(find "${members_dir}" -type f -name '*.o' -print0)
+  [[ "${member_count}" -gt 0 ]] || fail "core-seed archive contains no object members"
+  archive_symbol_manifest="${output_root}/core-seed-archive.symbols.txt"
+  nm -gU "${archive_path}" > "${archive_symbol_manifest}"
+  for symbol in \
+    _KGEN_CompilerRT_AlignedAlloc \
+    _KGEN_CompilerRT_AlignedFree \
+    _KGEN_CompilerRT_DestroyGlobals \
+    _KGEN_CompilerRT_GetGlobalOrNull \
+    _KGEN_CompilerRT_GetOrCreateGlobal \
+    _KGEN_CompilerRT_GetOrCreateGlobalIndexed \
+    _KGEN_CompilerRT_GetStackTrace \
+    _KGEN_CompilerRT_Initialize \
+    _KGEN_CompilerRT_InsertGlobal; do
+    grep -q "${symbol}$" "${archive_symbol_manifest}" || fail "core-seed archive is missing ${symbol}"
+  done
+  log "using target-checked archive: ${archive_path}"
+else
+  "${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSStatic
+  exec_root="$("${bazel_wrapper}" info --config=build-mojo execution_root)"
+  bazel_bin="$("${bazel_wrapper}" info --config=build-mojo bazel-bin)"
+  llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"
+  llvm_generated_include="${bazel_bin}/external/+llvm_configure+llvm-project/llvm/include"
+  [[ -d "${llvm_source_include}" && -d "${llvm_generated_include}" ]] || fail "missing LLVM headers"
+  common_flags=(-target "${target_triple}" -isysroot "${sdk_path}"
+    "${minimum_os_flag}" -arch arm64 -std=c++20
+    -DMODULAR_BUILDING_COMPILERRT -I"${repo_root}/Support/include"
+    -isystem "${llvm_source_include}" -isystem "${llvm_generated_include}")
+  sources=(MemoryIOS.cpp Initialize.cpp GlobalsIOS.cpp StackTraceIOS.cpp)
+  objects=()
+  for source in "${sources[@]}"; do
+    object_path="${output_root}/${source%.cpp}.o"
+    "${clangxx_bin}" "${common_flags[@]}" -c "${repo_root}/KGEN/lib/CompilerRT/${source}" -o "${object_path}"
+    vtool -show-build "${object_path}" | grep -q "platform ${expected_platform}" || fail "wrong platform: ${source}"
+    objects+=("${object_path}")
+  done
+  archive_path="${output_root}/libKGENCompilerRTIOSCoreSeedCandidate.a"
+  "${libtool_bin}" -static -o "${archive_path}" "${objects[@]}"
+fi
 
 global_object="${output_root}/mojo_ios_global_symbol_probe.o"
 error_object="${output_root}/mojo_ios_error_symbol_probe.o"

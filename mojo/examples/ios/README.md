@@ -581,6 +581,25 @@ with `apple-a7`, then verifies every object and final executable has `IOS`
 minimum-OS 17 metadata. It rejects `RUN_SIMULATOR=1` and performs no device
 signing, installation, or launch.
 
+The bounded core seed also has canonical Bazel archive targets for both
+platform variants. This one command builds both archives from the explicit
+`//KGEN:CompilerRTIOSCoreSeedSources` filegroup, verifies every archive member
+and exported runtime symbol, links real emitted-Mojo global and Error probes,
+and optionally runs the Simulator result marker:
+
+```sh
+RUN_SIMULATOR=1 MOJO_IOS_BAZEL_CORE_SEED_OUT="$(mktemp -d)" \
+  mojo/examples/ios/run_bazel_compilerrt_ios_core_seed_probe.sh
+```
+
+The underlying targets are
+`//mojo/examples/ios:compilerrt_ios_core_seed_simulator_archive` and
+`//mojo/examples/ios:compilerrt_ios_core_seed_device_archive`. Their Xcode SDK
+actions remain local and non-sandboxed until the root Apple C++ toolchain is
+implemented. They are target-correct build artifacts, not a claim of
+`initialize_runtime`, AsyncRT, physical-device execution, or a production
+CompilerRT package.
+
 The current `initialize_runtime`/AsyncRT boundary has a checked-in discovery
 gate:
 
