@@ -57,7 +57,7 @@ The explicit target avoids reusing the shared-library glob. It is named
 | `Support.cpp` | Defer from the bounded core seed | The existing bootstrap probe compiles its bfloat helpers, but current emitted global/Error probes do not require them |
 | `StackTraceIOS.cpp` | Include in bounded core seed | Implements the Error ABI's explicit “stack trace unavailable” path without desktop signal/configuration support |
 | `PrintIOS.cpp` | Include in bounded core seed | Provides only the stdlib `KGEN_CompilerRT_fprintf` forwarding ABI through public libc; avoids the CPU topology, argv, configuration, LLVM stack-trace, and signal code in desktop `System.cpp` |
-| AsyncRT | Later D6/D7 increment | Required for `initialize_runtime()`, async, and threading; add only after a static CPUDevice dependency graph is isolated |
+| AsyncRT | D7, not serial D6 | Required for `initialize_runtime()`, async, and threading; add only after a static CPUDevice dependency graph is isolated |
 | Python, JIT, compiler services | Exclude | Not part of an app runtime |
 | `RangeBridge.cpp`, `Tracing.cpp`, `TracyBridge.cpp` | Exclude initially | Profiling/plugin loaders and desktop instrumentation are not required for the first app-safe library |
 | `BinaryID.cpp` | Exclude initially | Desktop binary identity is not an app execution dependency |
@@ -164,9 +164,13 @@ static runtime.
 
 The first D6 code change now has explicit source groups, separate target-correct
 Bazel archives for Simulator and device, SDK allocator/core-seed link actions,
-Simulator execution for the bounded core seed and sandbox-file roundtrip, and a versioned
-`initialize_runtime()` undefined-symbol manifest. D6 remains incomplete:
-repeated initialization, broader filesystem/system coverage, AsyncRT/threading, and
-physical-device execution are still required. It must preserve the existing
-macOS/Linux `CompilerRT` target and make unsupported runtime features fail
-clearly rather than silently loading the desktop shared library.
+Simulator execution for the bounded core seed and sandbox-file roundtrip, and a
+versioned `initialize_runtime()` undefined-symbol manifest. Source audit shows
+that `initialize_runtime()` initializes only the AsyncRT CPU-device/worker
+runtime; it is not required by the demonstrated serial allocation, String,
+Error, environment, or file paths. D6 therefore remains incomplete on serial
+runtime hardening, broader filesystem/system coverage, global concurrency, and
+canonical packaging—not on AsyncRT. Repeated public runtime initialization and
+threading are D7 gates. Both milestones must preserve the existing macOS/Linux
+`CompilerRT` target and make unsupported runtime features fail clearly rather
+than silently loading the desktop shared library.

@@ -218,8 +218,8 @@ larger destination.
 | D5a — Physical device artifact | Development-signed runtime-free device `.app` plus install/launch transcript | Paired iPhone/iPad, Developer Mode, provisioning/signing, `devicectl` install, and process launch with captured output |
 | D5b — Physical visible “Hello from Mojo” | Development-signed SwiftUI `.app` showing Mojo-returned text and `20 + 22 = 42` | Device SwiftUI link, signing/install/launch, and a captured on-device screen or UI-test assertion; exercise iPhone and iPad hosts |
 | D5c — Optional internal TestFlight tracer | Distribution-signed IPA containing the SwiftUI tracer app | App Store Connect record, application identifier in the profile, successful upload/processing, and installation through an internal TestFlight group |
-| D6 — Static runtime and core stdlib | App-safe static CompilerRT plus supported stdlib subset | Allocation, errors, strings, files, repeated initialization, and threading on Simulator without unresolved runtime symbols |
-| D7 — CPU/SIMD/threading package | Reusable core library with correctness tests and device benchmark app | NEON/vector inspection, multicore correctness/scaling, C-boundary overhead, and no unexplained Swift regression |
+| D6 — Serial static runtime and core stdlib | App-safe non-AsyncRT CompilerRT plus supported serial stdlib subset | Globals, allocation, errors, strings, output, restricted environment/files, repeated C-ABI calls, dead stripping, and no unresolved runtime symbols |
+| D7 — AsyncRT/CPU/SIMD/threading package | Reusable core library with runtime initialization, parallel correctness tests, and device benchmark app | Two `initialize_runtime()` calls, NEON/vector inspection, multicore correctness/scaling, C-boundary overhead, and no unexplained Swift regression |
 | D8 — Direct C SDK products | Darwin/CoreFoundation/CoreGraphics/Accelerate/`os` headers and package products | iOS 17 compile/link tests, ABI layout checks, availability metadata, and at least one runtime test per product |
 | D9 — Object-framework adapters | Foundation/UIKit/SwiftUI/AVFoundation/Core ML adapter products | Stable C handles/callbacks, ownership and teardown tests, entitlement notes, and Simulator/device behavior where required |
 | D9a — Public ML acceleration | Core ML model adapter plus Accelerate/vDSP/BLAS/BNNS products | Bundled model conversion record, compute-unit diagnostics, device correctness, and evidence that ANE claims come from profiling rather than configuration |
@@ -493,13 +493,77 @@ claims and the immediate order of work:
    before making an ANE claim. Accelerate/vDSP/BLAS/BNNS remains a direct
    C/CPU-vector path and must not be described as raw ANE access. See the
    detailed [Core ML and Accelerate appendix](docs/ios/ACCELERATORS_COREML_ACCELERATE.md).
-7. **Prioritize D6 over framework breadth.** The static iOS CompilerRT and a
-   small allocation/string/error/parallel test matrix unlock substantially more
-   Mojo code than adding additional Apple framework names to the manifest.
+7. **Prioritize D6 over framework breadth.** The serial static iOS CompilerRT
+   and a small allocation/String/Error/environment/file test matrix unlock
+   substantially more Mojo code than adding additional Apple framework names
+   to the manifest. AsyncRT and parallel execution are the following D7 gate.
 
 These adjustments are deliberately conservative: they preserve the genuine
 Simulator result while preventing a two-function, runtime-free sample from
 being mistaken for a complete iOS port.
+
+## Post-Upstream Replan: Next Execution Sequence
+
+The August 23 upstream rebase changes one important assumption in the original
+ordering. The current `std.runtime.initialize_runtime()` implementation is not
+a general allocator or String initializer. It calls only the three AsyncRT
+CPU-device functions used to create, query, and release the process worker
+runtime. The public documentation likewise requires it for APIs that depend on
+that runtime, such as `parallelize()`. The already-running allocation, String,
+Error, environment, and sandbox-file probes do not reference those three
+symbols.
+
+Consequently, D6 is now the **serial core-runtime milestone** and is not blocked
+on AsyncRT. D7 owns AsyncRT initialization, parallel execution, threading, and
+performance. This is a scope split, not a shortcut:
+
+- Do not add a no-op implementation of the AsyncRT symbols merely to make
+  `initialize_runtime()` link.
+- Serial exports may allocate and use the supported core stdlib without calling
+  `initialize_runtime()`.
+- Exports using parallel, coroutine, or async facilities must call
+  `initialize_runtime()` and remain unsupported on iOS until the D7 runtime
+  passes its gates.
+- Until then, an iOS use of an unsupported runtime-dependent API should produce
+  a clear compile/link diagnostic rather than silently running with different
+  semantics.
+
+The Bazel blocker is independent. This repository currently runs a Bazel 10
+rolling build, while its resolved graph contains transitive `rules_apple 4.1.0`
+and `rules_swift 3.1.2`. Current rules_swift guidance requires at least 3.5.0
+for Bazel 10, and the rules_apple 5.0 release candidates are the line declaring
+rolling-Bazel compatibility. Adopting that line also changes protobuf and
+Apple-support dependencies, so it must be a dependency-owner migration with
+full graph tests, not an incidental iOS example edit. See the
+[rules_swift compatibility table](https://github.com/bazelbuild/rules_swift#supported-bazel-versions)
+and [rules_apple releases](https://github.com/bazelbuild/rules_apple/releases).
+
+Execute the next work as these small, reviewable deliveries. A later delivery
+must preserve every earlier exit gate.
+
+| Order | Delivery | Work | Exit gate / stop condition |
+| --- | --- | --- | --- |
+| N1 | Runtime contract regression | Add emitted-object manifests for representative serial exports and assert that they do not acquire `KGEN_CompilerRT_AsyncRT_*` dependencies. Move repeated runtime initialization out of D6 acceptance text. | Simulator and device objects for allocation/String/Error/environment/files have an audited symbol allow-list and no AsyncRT names. |
+| N2 | Core archive contract | Rename the bounded source group around a serial `CompilerRTIOSCore` contract; keep desktop `CompilerRT` and the host-built bootstrap distinct. Include only allocator, globals, initializer ABI, no-stack-trace Error support, and admitted libc shims. | Source membership and exported symbols are explicit; Python, JIT, Crashpad, profiling loaders, signals, TCMalloc, and AsyncRT are absent. |
+| N3 | Global lifetime hardening | Replace the current experimental global-table concurrency caveat with an iOS-safe synchronization/lifetime design and stress it from multiple native host threads. | Named/indexed lookup, insertion, destroy callbacks, repeated teardown, and concurrent access pass under Thread Sanitizer where available. |
+| N4 | Serial stdlib matrix | Add runtime probes for formatting/output, clocks, errno/error paths, collections, paths, restricted environment access, nested sandbox directories, and ordinary files. Keep compile-only inventory for every stdlib module. | Each supported serial module has Simulator execution and a device link artifact; unsupported APIs have an explicit diagnostic and no accidental desktop dependency. |
+| N5 | Core ABI hardening | Test repeated exported calls, caller buffers, opaque handles, Error-to-status conversion, dead stripping, duplicate-runtime rejection, and clean process exit. | A stress consumer executes thousands of calls with no leak, race, double free, unresolved symbol, or duplicate runtime archive. |
+| N6 | Apple-rule dependency trial | In a disposable branch, directly register a Bazel-10-compatible rules_apple/rules_swift pair, reconcile protobuf/apple_support/rules_cc changes, and run the full module graph plus KGEN/stdlib regressions. Prefer a stable release when it supports this Bazel build; otherwise pin a reviewed release candidate explicitly. | Module graph, `//KGEN:mojo`, CompilerRT, focused stdlib tests, and a minimal no-Mojo iOS app all analyze/build. Stop if dependency upgrades require unrelated product migrations that cannot be isolated. |
+| N7 | Root iOS C++ toolchain | Register separate `iphoneos` and `iphonesimulator` SDK repositories and add iOS branches for sysroot, triple, libc++, compile, link, rpath, sanitizer, and platform suffix selections. | A one-file C++ target analyzes and builds for both Apple mobile platforms without ambient `xcrun` discovery inside its compile action. |
+| N8 | Hermetic Mojo archives | Move the target-correct Mojo/core-runtime archive actions from example-local diagnostics onto the registered Apple toolchain and return correct `CcInfo`. | Sandboxed/reproducible Simulator and device archives have correct member metadata and are consumable in the same Bazel graph. |
+| N9 | Canonical Bazel app | Instantiate `swift_library`, `ios_application`, XCTest, and UI-test targets around the runtime-free tracer, then the serial core runtime. | One Bazel command builds, installs, launches, checks both C exports, and asserts the visible greeting/calculation in an arm64 Simulator. |
+| N10 | Clean package consumer | Package serial core device/Simulator slices as an XCFramework plus local Swift Package and validate from a clean app checkout. | The app runs in Simulator with no Mojo compiler or Modular install and with exactly one compatible core runtime per final binary. |
+| N11 | AsyncRT target graph | Define the smallest behavior-preserving iOS AsyncRT source/dependency graph. Remove or parameterize desktop-only configuration, profiling, signal, and target-LLVM assumptions; select a malloc-backed allocator explicitly. | Every source compiles for both iOS SDKs and the graph contains no TCMalloc, compiler/JIT, private API, or desktop fault-handler dependency. Do not add ABI stubs if this gate fails. |
+| N12 | Runtime initialization correctness | Link the real three AsyncRT CPU-device symbols, call public `initialize_runtime()` twice, query parallelism, and exercise a minimal task/chain lifecycle. A documented single-thread profile may be used only as a clearly temporary correctness stage. | Simulator launch passes initialization, idempotence, task completion, and teardown-by-process with no ABI carrier approximation. |
+| N13 | Real worker pool | Enable the reviewed iOS worker queue, bound thread counts for mobile hardware, validate foreground/background and memory-pressure behavior, and add parallel map/reduce correctness. | Useful multicore scaling appears above documented thresholds without hangs, oversubscription, lifecycle violations, or unexplained energy cost. |
+| N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
+| N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
+
+The immediate coding order is N1–N5, while N6–N9 should proceed as a separate
+dependency/toolchain stack. N11 must begin with dependency isolation and may
+run in parallel with those tracks, but N12 cannot be declared complete until
+the real public `OptionalPointer` ABI and CPU-device semantics execute. Physical
+device work is still valuable but is not a prerequisite for N1–N13.
 
 ## Phased Implementation Roadmap
 
@@ -634,13 +698,16 @@ output name.
 
 1. Split or parameterize `KGENCompilerRT` so iOS receives a statically linkable,
    application-safe runtime instead of `libKGENCompilerRTShared.dylib`.
-2. Limit the initial runtime to what library code needs: globals, allocation,
-   error support, core system queries, and AsyncRT/thread-pool support.
+2. Limit the initial serial runtime to what library code needs: globals,
+   allocation, error support, admitted libc shims, and core system queries.
+   AsyncRT and its worker pool belong to Phase 5/D7.
 3. Exclude Python loading, compiler and JIT facilities, Crashpad, Tracy or plugin
    loading, dynamic profiling loaders, and globally installed fault handlers.
-4. Require exported Mojo entry points that allocate, launch parallel work, or
-   use async facilities to call `std.runtime.initialize_runtime()`. Preserve its
-   idempotent, process-lifetime behavior.
+4. Require exported Mojo entry points that launch parallel work or use async or
+   coroutine facilities to call `std.runtime.initialize_runtime()`. Serial
+   allocation, String, Error, environment, and file operations do not require
+   that CPU-device initializer. Preserve its idempotent, process-lifetime
+   behavior when Phase 5 enables it.
 5. Extend the standard-library target API with:
 
    - `CompilationTarget.is_ios()`.
@@ -663,8 +730,11 @@ output name.
      REPL/JIT features, and APIs incompatible with the iOS sandbox.
 
 **Exit gate:** Simulator tests cover output, allocation and deallocation,
-strings, errors, sandboxed files, two runtime-initialization calls, parallel
-execution, and clean process exit without unresolved runtime symbols.
+strings, errors, restricted environment access, sandboxed files, repeated
+C-ABI calls, global teardown, dead stripping, and clean process exit without
+unresolved runtime symbols. The emitted serial objects contain no
+`KGEN_CompilerRT_AsyncRT_*` dependency. Runtime initialization and parallel
+execution are Phase 5 gates.
 
 ### Phase 4 — Physical Device and Reusable Packaging
 
@@ -724,9 +794,15 @@ compile-only, or unavailable status and a linked test/diagnostic.
 
 ### Phase 5 — CPU, SIMD, Threading, and Swift Benchmarks
 
-1. Run correctness tests in Simulator, but prohibit Simulator measurements from
+1. Build a target-correct, statically linkable iOS AsyncRT graph with explicitly
+   reviewed CPU-device, allocator, worker-queue, profiling, and shutdown policy.
+   Do not satisfy its ABI with no-op stubs.
+2. Validate the public `std.runtime.initialize_runtime()` ABI directly: call it
+   twice, query `parallelism_level()`, run minimal task/chain and parallel
+   correctness probes, and keep the runtime alive for process lifetime.
+3. Run correctness tests in Simulator, but prohibit Simulator measurements from
    being used in performance claims.
-2. Add an on-device release benchmark app comparing:
+4. Add an on-device release benchmark app comparing:
 
    - Mojo scalar code with equivalent optimized Swift.
    - Mojo explicit SIMD and auto-vectorized loops with Swift loops.
@@ -734,28 +810,29 @@ compile-only, or unavailable status and a linked test/diagnostic.
    - Both languages with Accelerate/vDSP or Metal Performance Shaders as an
      optimized platform ceiling.
 
-3. Begin with vector transform, reduction, dot product, image convolution,
+5. Begin with vector transform, reduction, dot product, image convolution,
    small and large matrix multiplication, allocation-heavy processing, and
    parallel map/reduce.
-4. Allocate and initialize data outside timed regions. Use identical buffers
+6. Allocate and initialize data outside timed regions. Use identical buffers
    and algorithms, warmups, many iterations, result validation, and separate
    measurements of C-boundary overhead.
-5. Record compiler version, optimization flags, target CPU and features,
+7. Record compiler version, optimization flags, target CPU and features,
    device/chip, OS, workload size, thermal state, median and p95 latency,
    throughput, peak memory, binary size, and energy observations.
-6. Inspect emitted assembly to confirm NEON/vector instructions. Use Instruments
+8. Inspect emitted assembly to confirm NEON/vector instructions. Use Instruments
    and signposted regions to profile CPU occupancy and call trees; Apple's
    [OSSignposter](https://developer.apple.com/documentation/os/ossignposter)
    supports isolating timed work.
-7. Require Mojo to achieve at least 90% of optimized Swift throughput for
+9. Require Mojo to achieve at least 90% of optimized Swift throughput for
    equivalent compute-bound implementations, or record a root-caused
    compiler/runtime issue before calling the workload supported. Accelerate and
    MPS results are informative ceilings, not pass/fail gates.
 
-**Exit gate:** Reproducible physical-device reports demonstrate correct SIMD
-generation, useful multicore scaling above documented workload thresholds,
-controlled runtime overhead, and no unexplained large regression against
-equivalent Swift.
+**Exit gate:** Public runtime initialization is idempotent and the real AsyncRT
+task path executes correctly in Simulator. Reproducible physical-device reports
+then demonstrate correct SIMD generation, useful multicore scaling above
+documented workload thresholds, controlled runtime overhead, and no unexplained
+large regression against equivalent Swift.
 
 ### Phase 6 — Apple Framework Interoperability
 
@@ -1009,7 +1086,8 @@ until its corresponding tests run in the intended target environment.
 | Area | Required coverage and acceptance criteria | First required phase |
 | --- | --- | --- |
 | Compiler | Both triples; target-aware CPU defaults; correct cross-compilation state; Mach-O platform metadata; debug information; stable C ABI symbols; actionable unsupported-link diagnostics | 0–2 |
-| Runtime | Static link; repeated initialization; globals; allocation; errors; threading; process-lifetime shutdown; dead stripping; no unresolved or duplicate runtime symbols | 3 |
+| Serial core runtime | Static link; globals; allocation; errors; restricted environment/files; repeated C-ABI calls; process-lifetime shutdown; dead stripping; no unresolved, duplicate, or AsyncRT runtime symbols | 3 |
+| Async runtime | Two public initialization calls; real CPU-device ABI; task/chain correctness; threading; process-lifetime ownership; no TCMalloc or desktop-only dependency unless explicitly approved | 5 |
 | Standard library | Compile-only coverage for every module; runtime coverage for the supported subset; explicit diagnostics for restricted or unavailable APIs | 3 |
 | Swift integration | Swift unit tests for every exported ABI; caller-owned buffer and opaque-handle tests; callback and error-path coverage | 1–6 |
 | Application integration | SwiftUI UI test; iPhone and iPad Simulator build/install/launch; runtime-free physical artifact launch; visible SwiftUI physical “Hello from Mojo”; clean XCFramework consumer | 1, D5a–D5b, and 4 |
