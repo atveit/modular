@@ -18,7 +18,7 @@ mkdir -p "${output_root}"
 
 # This host build materializes the repository LLVM source/generated headers.
 # Its archive and any host LLVM libraries are never compile/link inputs here.
-"${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSStatic
+"${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSBootstrapHost
 exec_root="$("${bazel_wrapper}" info --config=build-mojo execution_root)"
 bazel_bin="$("${bazel_wrapper}" info --config=build-mojo bazel-bin)"
 llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"

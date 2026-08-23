@@ -8,8 +8,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 output_root="${MOJO_IOS_BAZEL_CORE_SEED_OUT:-${repo_root}/bazel-out/ios-bazel-core-seed-probe}"
 bazel_wrapper="${repo_root}/bazelw"
-simulator_archive="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_seed_simulator_archive.a"
-device_archive="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_seed_device_archive.a"
+simulator_archive="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_simulator_archive.a"
+device_archive="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_device_archive.a"
 
 log() { printf '[ios-bazel-core-seed-probe] %s\n' "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -19,8 +19,8 @@ mkdir -p "${output_root}/simulator" "${output_root}/device"
 
 log "building target-correct Simulator and device archives"
 "${bazel_wrapper}" build --config=build-mojo \
-  //mojo/examples/ios:compilerrt_ios_core_seed_simulator_archive \
-  //mojo/examples/ios:compilerrt_ios_core_seed_device_archive
+  //mojo/examples/ios:compilerrt_ios_core_simulator_archive \
+  //mojo/examples/ios:compilerrt_ios_core_device_archive
 
 [[ -f "${simulator_archive}" ]] || fail "missing Simulator archive: ${simulator_archive}"
 [[ -f "${device_archive}" ]] || fail "missing device archive: ${device_archive}"

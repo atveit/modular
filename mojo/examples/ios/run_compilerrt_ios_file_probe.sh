@@ -22,8 +22,8 @@ mkdir -p "${output_root}/simulator" "${output_root}/device"
 log "building the repository compiler and both SDK-native core-seed archives"
 "${bazel_wrapper}" build --config=build-mojo --jobs=16 \
   //KGEN:mojo \
-  //mojo/examples/ios:compilerrt_ios_core_seed_simulator_archive \
-  //mojo/examples/ios:compilerrt_ios_core_seed_device_archive
+  //mojo/examples/ios:compilerrt_ios_core_simulator_archive \
+  //mojo/examples/ios:compilerrt_ios_core_device_archive
 [[ -x "${mojo_bin}" ]] || fail "MOJO_BIN is unavailable: ${mojo_bin}"
 
 build_platform() {
@@ -35,14 +35,14 @@ build_platform() {
     target_cpu=apple-m1
     minimum_os_flag=-mios-simulator-version-min=17.0
     expected_platform=IOSSIMULATOR
-    archive_path="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_seed_simulator_archive.a"
+    archive_path="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_simulator_archive.a"
   else
     sdk_name=iphoneos
     target_triple=arm64-apple-ios17.0
     target_cpu=apple-a7
     minimum_os_flag=-miphoneos-version-min=17.0
     expected_platform=IOS
-    archive_path="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_seed_device_archive.a"
+    archive_path="${repo_root}/bazel-bin/mojo/examples/ios/libcompilerrt_ios_core_device_archive.a"
   fi
 
   local platform_out="${output_root}/${platform}"

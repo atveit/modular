@@ -30,14 +30,14 @@ if [[ -z "${MOJO_IOS_BAZEL_EXEC_ROOT:-}" || -z "${MOJO_IOS_BAZEL_BIN:-}" ]]; the
   # The generated LLVM config headers and the external source tree may not be
   # materialized after a clean or a different Bazel configuration. Build only
   # the host graph as a header seed; its archive is never an iOS link input.
-  "${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSStatic
+  "${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSBootstrapHost
 fi
 exec_root="${MOJO_IOS_BAZEL_EXEC_ROOT:-$("${bazel_wrapper}" info --config=build-mojo execution_root)}"
 bazel_bin="${MOJO_IOS_BAZEL_BIN:-$("${bazel_wrapper}" info --config=build-mojo bazel-bin)}"
 llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"
 llvm_generated_include="${bazel_bin}/external/+llvm_configure+llvm-project/llvm/include"
 [[ -d "${llvm_source_include}" ]] || fail "missing Bazel LLVM source headers: ${llvm_source_include}"
-[[ -d "${llvm_generated_include}" ]] || fail "missing generated LLVM headers: ${llvm_generated_include}; run ./bazelw build --config=build-mojo //KGEN:CompilerRTIOSStatic first"
+[[ -d "${llvm_generated_include}" ]] || fail "missing generated LLVM headers: ${llvm_generated_include}; run ./bazelw build --config=build-mojo //KGEN:CompilerRTIOSBootstrapHost first"
 
 # These are header-only build inputs from Bazel. All archive members below are
 # freshly compiled by the selected iOS SDK clang++, never copied from Bazel.

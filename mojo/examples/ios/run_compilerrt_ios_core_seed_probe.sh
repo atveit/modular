@@ -80,7 +80,7 @@ if [[ -n "${archive_override}" ]]; then
   done
   log "using target-checked archive: ${archive_path}"
 else
-  "${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSStatic
+  "${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSBootstrapHost
   exec_root="$("${bazel_wrapper}" info --config=build-mojo execution_root)"
   bazel_bin="$("${bazel_wrapper}" info --config=build-mojo bazel-bin)"
   llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"

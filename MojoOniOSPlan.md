@@ -270,7 +270,7 @@ Simulator SDKs; it does not load a model
 or claim ANE use. D12
 has an Xcode-only handwritten-MSL AIR/metallib probe for both candidate iOS
 triples; it does not prove Mojo lowering, app loading, or device dispatch.
-D6 now has an explicit `//KGEN:CompilerRTIOSStatic` source-list seed plus a
+D6 now has an explicit `//KGEN:CompilerRTIOSCoreSources` serial source contract plus a
 libc-only `MemoryIOS.cpp` allocator slice. The Simulator link diagnostic
 compiles that allocator with the iPhoneSimulator SDK and links the
 runtime-dependent String object with no unresolved `KGEN_CompilerRT_*`
@@ -294,7 +294,7 @@ map, not a runtime pass.
 Additional D6 manifests now record the allocation, stack-trace, and global
 table symbols required by narrow `Error` and `_Global` stdlib operations on
 both iOS triples; they are dependency evidence only. The member-level runtime
-metadata checker also proves that the current Bazel `CompilerRTIOSStatic`
+metadata checker also proves that the host-only Bazel `CompilerRTIOSBootstrapHost`
 archive is host `MACOS` and rejects it, while the SDK-compiled allocator slice
 passes as `IOSSIMULATOR`. The remaining D7 and runtime portions of D9–D13
 remain planned and must not be described as shipped support. D7 has a
@@ -404,7 +404,7 @@ The expected-failure `Globals.cpp` link boundary is complemented by a separate
 `GlobalsIOS.cpp` candidate: its named/indexed lookup, insertion, destruction,
 and idempotent teardown pass a C++ Simulator consumer and an opt-in Simulator
 launch marker. It remains an experimental implementation, is not wired into
-`CompilerRTIOSStatic`, and makes no lock-free, concurrent-destruction, or
+the canonical serial core archives, and makes no lock-free, concurrent-destruction, or
 AsyncRT claim.
 The follow-on probe emits a real Mojo `std.ffi._Global` object, links it against
 that separate SDK-built candidate, and observes
@@ -422,7 +422,7 @@ Simulator archive,
 links both emitted Mojo global and Error probes, and observes
 `MOJO_COMPILERRT_CORE_SEED_PROBE_PASS`. This demonstrates only coexistence of
 the narrow allocation, named-global teardown, and Error-construction paths;
-the candidates remain outside `CompilerRTIOSStatic`, and no
+the canonical serial core archive remains explicitly scoped, and no
 `initialize_runtime`, AsyncRT, TCMalloc, throwing, stack capture, concurrent
 global semantics, or device claim is made. The same source/probe set now has an
 artifact-only device mode: it compiles and links for
@@ -559,10 +559,12 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1 is complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1 and N2 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
-`KGEN_CompilerRT_AsyncRT_*` dependency. N2 is next.
+`KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
+`CompilerRTIOSCoreSources` contract, canonical device/Simulator archive labels,
+and archive-level forbidden symbol-family checks. N3 is next.
 
 The immediate coding order is N1–N5, while N6–N9 should proceed as a separate
 dependency/toolchain stack. N11 must begin with dependency isolation and may

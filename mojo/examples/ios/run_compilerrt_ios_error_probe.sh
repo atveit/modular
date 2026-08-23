@@ -20,7 +20,7 @@ fail() { log "ERROR: $*" >&2; exit 1; }
 command -v xcrun >/dev/null 2>&1 || fail "xcrun is required"
 mkdir -p "${output_root}"
 
-"${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSStatic
+"${bazel_wrapper}" build --config=build-mojo //KGEN:CompilerRTIOSBootstrapHost
 exec_root="$("${bazel_wrapper}" info --config=build-mojo execution_root)"
 bazel_bin="$("${bazel_wrapper}" info --config=build-mojo bazel-bin)"
 llvm_source_include="${exec_root}/external/+llvm_configure+llvm-project/llvm/include"

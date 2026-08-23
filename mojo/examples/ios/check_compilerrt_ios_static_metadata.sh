@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify that every object in a proposed CompilerRTIOSStatic archive carries
+# Verify that every object in a proposed iOS CompilerRT archive carries
 # iOS (or iOS Simulator) Mach-O metadata.  This is metadata evidence only;
 # it does not link, sign, install, or execute an app.
 
@@ -7,7 +7,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
-archive="${MOJO_IOS_COMPILERRT_ARCHIVE:-${repo_root}/bazel-bin/KGEN/libCompilerRTIOSStatic.a}"
+archive="${MOJO_IOS_COMPILERRT_ARCHIVE:-${repo_root}/bazel-bin/KGEN/libCompilerRTIOSBootstrapHost.a}"
 target_triple="${MOJO_IOS_RUNTIME_TRIPLE:-arm64-apple-ios17.0-simulator}"
 
 log() {
@@ -29,7 +29,7 @@ command -v ar >/dev/null 2>&1 || fail "ar is required"
 command -v vtool >/dev/null 2>&1 || fail "vtool is required for Mach-O platform inspection"
 if [[ ! -f "${archive}" ]]; then
   log "SKIP: archive is unavailable: ${archive}"
-  log "Build it with: ./bazelw build --config=build-mojo //KGEN:CompilerRTIOSStatic"
+  log "Build it with: ./bazelw build --config=build-mojo //KGEN:CompilerRTIOSBootstrapHost"
   exit 0
 fi
 
@@ -51,7 +51,7 @@ for member in "${members[@]}"; do
   printf '%s\n' "${build_info}"
   if ! grep -Eq "^[[:space:]]+platform[[:space:]]+${expected_platform}$" <<<"${build_info}"; then
     actual_platform="$(sed -nE 's/^[[:space:]]*platform[[:space:]]+([^[:space:]]+).*/\1/p' <<<"${build_info}" | head -n 1)"
-    fail "$(basename "${member}") has platform '${actual_platform:-unknown}', expected '${expected_platform}'. Rebuild every CompilerRTIOSStatic member with the matching iPhoneOS/iPhoneSimulator SDK; do not archive host-macOS objects."
+    fail "$(basename "${member}") has platform '${actual_platform:-unknown}', expected '${expected_platform}'. Rebuild every iOS core member with the matching iPhoneOS/iPhoneSimulator SDK; do not archive host-macOS objects."
   fi
 done
 

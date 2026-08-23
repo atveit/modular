@@ -366,11 +366,11 @@ allocator and String lifetime path on Simulator. It still does not prove
 `initialize_runtime()`, AsyncRT, repeated runtime initialization, or clean
 process teardown for the full runtime.
 
-`//KGEN:CompilerRTIOSStatic` is currently built by the host Bazel
+`//KGEN:CompilerRTIOSBootstrapHost` is currently built by the host Bazel
 configuration, so its archive must be inspected before it is supplied here:
 
 ```sh
-./bazelw build --config=build-mojo //KGEN:CompilerRTIOSStatic
+./bazelw build --config=build-mojo //KGEN:CompilerRTIOSBootstrapHost
 mojo/examples/ios/check_compilerrt_ios_static_metadata.sh
 ```
 
@@ -384,7 +384,8 @@ and the iOS minimum-version flag), archive those SDK-targeted objects with that
 SDK's `libtool -static`, then rerun this member-level check before the existing
 link probe. `run_static_runtime_link_probe.sh` already demonstrates the same
 recipe for its intentionally allocator-only `MemoryIOS.cpp` slice; it is not a
-recipe for repackaging host-built `CompilerRTIOSStatic` objects.
+recipe for repackaging host-built `CompilerRTIOSBootstrapHost` objects. The old
+`CompilerRTIOSStatic` name remains only as a compatibility alias.
 
 Set `RUN_SIMULATOR=1` to opt into the narrow allocator/String lifetime gate:
 
@@ -487,7 +488,7 @@ target can be checked without rebuilding the compiler:
 When the pinned compiler target and generated LLVM headers are available, a
 normal build invokes Xcode's Simulator SDK compiler and archiver from a local,
 non-sandboxed action because this repository currently has a macOS-only Bazel
-sysroot/C++ toolchain. `//KGEN:CompilerRTIOSStatic` is an input solely to
+sysroot/C++ toolchain. `//KGEN:CompilerRTIOSBootstrapHost` is an input solely to
 materialize Bazel-generated LLVM headers; the action never reads, links, or
 repackages its host archive. The checked-in shell probe and the Bazel action
 both now produce fresh Simulator archive evidence. The Bazel action remains a
@@ -536,7 +537,7 @@ RUN_SIMULATOR=1 MOJO_IOS_GLOBALS_MOJO_PROBE_OUT="$(mktemp -d)" \
 ```
 
 This validates only the emitted named-global symbol path and basic lifecycle.
-It does not wire the candidate into `CompilerRTIOSStatic`, establish general
+It does not by itself establish general
 stdlib support, or cover `initialize_runtime`/AsyncRT.
 
 `StackTraceIOS.cpp` is a separate error-path candidate for
@@ -584,7 +585,7 @@ signing, installation, or launch.
 
 The bounded core seed also has canonical Bazel archive targets for both
 platform variants. This one command builds both archives from the explicit
-`//KGEN:CompilerRTIOSCoreSeedSources` filegroup, verifies every archive member
+`//KGEN:CompilerRTIOSCoreSources` filegroup, verifies every archive member
 and exported runtime symbol, links real emitted-Mojo global and Error probes,
 and optionally runs the Simulator result marker:
 
@@ -594,8 +595,8 @@ RUN_SIMULATOR=1 MOJO_IOS_BAZEL_CORE_SEED_OUT="$(mktemp -d)" \
 ```
 
 The underlying targets are
-`//mojo/examples/ios:compilerrt_ios_core_seed_simulator_archive` and
-`//mojo/examples/ios:compilerrt_ios_core_seed_device_archive`. Their Xcode SDK
+`//mojo/examples/ios:compilerrt_ios_core_simulator_archive` and
+`//mojo/examples/ios:compilerrt_ios_core_device_archive`. Their Xcode SDK
 actions remain local and non-sandboxed until the root Apple C++ toolchain is
 implemented. They are target-correct build artifacts, not a claim of
 `initialize_runtime`, AsyncRT, physical-device execution, or a production

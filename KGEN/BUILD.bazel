@@ -1020,7 +1020,7 @@ modular_shared_library(
 # Keep this source list explicit so Python/JIT, tracing, plugin, device-context,
 # and desktop fault-handler code cannot enter an app through this target.
 modular_cc_library(
-    name = "CompilerRTIOSStatic",
+    name = "CompilerRTIOSBootstrapHost",
     srcs = [
         "lib/CompilerRT/Globals.cpp",
         "lib/CompilerRT/Initialize.cpp",
@@ -1035,6 +1035,14 @@ modular_cc_library(
         "//Support:SymbolExport",
         "@llvm-project//llvm:Support",
     ],
+)
+
+# Compatibility name for the original host-built diagnostic. Despite its old
+# name, this archive contains macOS objects and must never ship in an iOS app.
+alias(
+    name = "CompilerRTIOSStatic",
+    actual = ":CompilerRTIOSBootstrapHost",
+    visibility = ["//visibility:public"],
 )
 
 # Source-only access for the SDK-native iOS bootstrap diagnostic. This exposes
@@ -1057,7 +1065,7 @@ filegroup(
 # It is still not a complete runtime: AsyncRT and initialize_runtime support
 # remain deliberately excluded.
 filegroup(
-    name = "CompilerRTIOSCoreSeedSources",
+    name = "CompilerRTIOSCoreSources",
     srcs = [
         "lib/CompilerRT/GlobalsIOS.cpp",
         "lib/CompilerRT/Initialize.cpp",
@@ -1065,6 +1073,14 @@ filegroup(
         "lib/CompilerRT/PrintIOS.cpp",
         "lib/CompilerRT/StackTraceIOS.cpp",
     ],
+    visibility = ["//mojo/examples/ios:__pkg__"],
+)
+
+# Compatibility alias while existing downstream diagnostics migrate to the
+# serial-core contract name.
+alias(
+    name = "CompilerRTIOSCoreSeedSources",
+    actual = ":CompilerRTIOSCoreSources",
     visibility = ["//mojo/examples/ios:__pkg__"],
 )
 

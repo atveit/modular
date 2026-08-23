@@ -14,6 +14,12 @@ def _compilerrt_ios_static_archive_impl(ctx):
         )
         for symbol in ctx.attr.expected_symbols
     ])
+    forbidden_checks = "\n".join([
+        "if grep -Eq '{pattern}' \"${{symbol_manifest}}\"; then echo \"forbidden CompilerRT symbol family: {pattern}\" >&2; exit 1; fi".format(
+            pattern = pattern,
+        )
+        for pattern in ctx.attr.forbidden_symbol_patterns
+    ])
 
     command = """
 set -euo pipefail
@@ -40,11 +46,13 @@ done
 symbol_manifest="$(mktemp)"
 nm -gU "{archive}" > "${{symbol_manifest}}"
 {checks}
+{forbidden_checks}
 """.format(
         archive = archive.path,
         bin_dir = ctx.bin_dir.path,
         checks = checks,
         expected_platform = ctx.attr.expected_platform,
+        forbidden_checks = forbidden_checks,
         minimum_os_flag = ctx.attr.minimum_os_flag,
         objects = object_paths,
         sdk_name = ctx.attr.sdk_name,
@@ -59,8 +67,8 @@ nm -gU "{archive}" > "${{symbol_manifest}}"
         inputs = ctx.files.srcs + [ctx.file._llvm_header_seed],
         outputs = object_files + [archive],
         command = command,
-        mnemonic = "CompilerRTIOSStaticArchive",
-        progress_message = "SDK-compiling target-correct CompilerRT iOS seed %{label}",
+        mnemonic = "CompilerRTIOSCoreArchive",
+        progress_message = "SDK-compiling target-correct CompilerRT iOS core %{label}",
         execution_requirements = {
             "local": "1",
             "no-sandbox": "1",
@@ -73,12 +81,13 @@ _compilerrt_ios_static_archive = rule(
     attrs = {
         "expected_platform": attr.string(mandatory = True),
         "expected_symbols": attr.string_list(mandatory = True),
+        "forbidden_symbol_patterns": attr.string_list(),
         "minimum_os_flag": attr.string(mandatory = True),
         "sdk_name": attr.string(mandatory = True),
         "srcs": attr.label_list(allow_files = [".cpp"], mandatory = True),
         "target_triple": attr.string(mandatory = True),
         "_llvm_header_seed": attr.label(
-            default = Label("//KGEN:CompilerRTIOSStatic"),
+            default = Label("//KGEN:CompilerRTIOSBootstrapHost"),
             allow_single_file = True,
         ),
     },
@@ -89,6 +98,13 @@ def compilerrt_ios_static_archive(
         name,
         srcs,
         expected_symbols,
+        forbidden_symbol_patterns = [
+            "KGEN_CompilerRT_AsyncRT_",
+            "KGEN_CompilerRT_.*Python",
+            "KGEN_CompilerRT_.*JIT",
+            "KGEN_CompilerRT_.*Tracy",
+            "TCMalloc",
+        ],
         platform = "IOSSIMULATOR",
         sdk_name = "iphonesimulator",
         target_triple = "arm64-apple-ios17.0-simulator",
@@ -99,6 +115,7 @@ def compilerrt_ios_static_archive(
         name = name,
         expected_platform = platform,
         expected_symbols = expected_symbols,
+        forbidden_symbol_patterns = forbidden_symbol_patterns,
         minimum_os_flag = minimum_os_flag,
         sdk_name = sdk_name,
         srcs = srcs,

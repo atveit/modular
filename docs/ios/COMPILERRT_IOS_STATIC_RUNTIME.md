@@ -32,11 +32,13 @@ macOS dynamic runtime into an iOS app.
   helper. An exported function that only writes a caller-owned buffer or
   performs a small allocation must not implicitly initialize the complete
   AsyncRT process runtime.
-- `KGEN/BUILD.bazel` now contains the explicit `//KGEN:CompilerRTIOSStatic`
-  source-list seed. Its `MemoryIOS.cpp` member is libc-only and is compiled
-  against the iPhoneSimulator SDK by the link diagnostic; the Bazel archive
-  itself is a host build artifact and must not be treated as an iOS archive.
-- `//KGEN:CompilerRTIOSCoreSeedSources` selects `MemoryIOS.cpp`,
+- `KGEN/BUILD.bazel` now contains the explicit
+  `//KGEN:CompilerRTIOSBootstrapHost` diagnostic. Its `MemoryIOS.cpp` member is
+  libc-only and is compiled against the iPhoneSimulator SDK by the link
+  diagnostic; the Bazel archive itself is a host build artifact and must not be
+  treated as an iOS archive. `CompilerRTIOSStatic` remains a compatibility
+  alias only.
+- `//KGEN:CompilerRTIOSCoreSources` selects `MemoryIOS.cpp`,
   `Initialize.cpp`, `GlobalsIOS.cpp`, and `StackTraceIOS.cpp`. The two
   example-local Bazel targets compile that source group with the matching
   iPhoneSimulator or iPhoneOS SDK and produce distinct target-correct archives.
@@ -46,8 +48,9 @@ macOS dynamic runtime into an iOS app.
 
 ## Candidate first static target
 
-The explicit target avoids reusing the shared-library glob. It is named
-`CompilerRTIOSStatic` and keeps its source and dependency policy reviewable:
+The explicit serial source contract avoids reusing the shared-library glob. It
+is named `CompilerRTIOSCoreSources`; the separate host bootstrap diagnostic
+keeps its source and dependency policy reviewable:
 
 | Component | Initial status | Reason |
 |---|---|---|

@@ -91,7 +91,7 @@ mojo_ios_static_library(
 )
 
 # Diagnostic archive only. This recompiles explicit sources with Xcode's
-# iPhoneSimulator SDK; it never repackages CompilerRTIOSStatic's host archive.
+# iPhoneSimulator SDK; it never repackages CompilerRTIOSBootstrapHost's archive.
 compilerrt_ios_simulator_bootstrap_archive(
     name = "compilerrt_ios_simulator_bootstrap_archive_diagnostic",
     srcs = ["//KGEN:CompilerRTIOSBootstrapSources"],
@@ -116,10 +116,10 @@ _IOS_CORE_SEED_SYMBOLS = [
 
 # Bounded non-AsyncRT core seed used by the emitted-Mojo global/Error probe.
 # Both archives are compiled from source with the matching Xcode SDK; neither
-# repackages the host-built //KGEN:CompilerRTIOSStatic output.
+# repackages the host-built //KGEN:CompilerRTIOSBootstrapHost output.
 compilerrt_ios_static_archive(
-    name = "compilerrt_ios_core_seed_simulator_archive",
-    srcs = ["//KGEN:CompilerRTIOSCoreSeedSources"],
+    name = "compilerrt_ios_core_simulator_archive",
+    srcs = ["//KGEN:CompilerRTIOSCoreSources"],
     expected_symbols = _IOS_CORE_SEED_SYMBOLS,
     tags = [
         "manual",
@@ -128,8 +128,8 @@ compilerrt_ios_static_archive(
 )
 
 compilerrt_ios_static_archive(
-    name = "compilerrt_ios_core_seed_device_archive",
-    srcs = ["//KGEN:CompilerRTIOSCoreSeedSources"],
+    name = "compilerrt_ios_core_device_archive",
+    srcs = ["//KGEN:CompilerRTIOSCoreSources"],
     expected_symbols = _IOS_CORE_SEED_SYMBOLS,
     minimum_os_flag = "-miphoneos-version-min=17.0",
     platform = "IOS",
@@ -139,6 +139,18 @@ compilerrt_ios_static_archive(
         "requires-xcode",
     ],
     target_triple = "arm64-apple-ios17.0",
+)
+
+# Compatibility labels for existing automation. New consumers should use the
+# serial-core names above.
+alias(
+    name = "compilerrt_ios_core_seed_simulator_archive",
+    actual = ":compilerrt_ios_core_simulator_archive",
+)
+
+alias(
+    name = "compilerrt_ios_core_seed_device_archive",
+    actual = ":compilerrt_ios_core_device_archive",
 )
 
 exports_files([
