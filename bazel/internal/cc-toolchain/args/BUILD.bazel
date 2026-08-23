@@ -170,10 +170,12 @@ cc_args(
 cc_args(
     name = "link_args",
     actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
-    args = [
-        # TODO: Revisit, copied from toolchains_llvm
-        "-fuse-ld=lld",
-    ] + select({
+    args = select({
+        # Apple ld understands Swift autolink entries and the SDK's framework
+        # re-export graph. Keep lld for the existing desktop targets.
+        "@platforms//os:ios": [],
+        "//conditions:default": ["-fuse-ld=lld"],
+    }) + select({
         "@platforms//os:linux": [
             "-lm",
             "-lstdc++",

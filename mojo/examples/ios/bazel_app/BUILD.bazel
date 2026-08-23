@@ -1,0 +1,70 @@
+load(
+    "@build_bazel_rules_apple//apple:ios.bzl",
+    "ios_application",
+    "ios_ui_test",
+    "ios_unit_test",
+)
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "MojoIOSSerialCoreAnchor",
+    srcs = ["MojoIOSSerialCoreAnchor.c"],
+    hdrs = ["MojoIOSSerialCoreAnchor.h"],
+    aspect_hints = ["@build_bazel_rules_swift//swift:auto_module"],
+    deps = ["//mojo/examples/ios:compilerrt_ios_core"],
+)
+
+swift_library(
+    name = "MojoIOSAppSources",
+    srcs = ["MojoIOSApp.swift"],
+    module_name = "MojoIOSAppSources",
+    deps = [
+        ":MojoIOSSerialCoreAnchor",
+        "//mojo/examples/ios:mojo_ios_archive",
+    ],
+)
+
+ios_application(
+    name = "MojoIOSApp",
+    bundle_id = "com.modular.mojo.ios.bazel",
+    families = [
+        "iphone",
+        "ipad",
+    ],
+    infoplists = ["Info.plist"],
+    minimum_os_version = "17.0",
+    deps = [":MojoIOSAppSources"],
+)
+
+swift_library(
+    name = "MojoIOSAppTestsSources",
+    testonly = True,
+    srcs = ["MojoIOSAppTests.swift"],
+    module_name = "MojoIOSAppTestsSources",
+    deps = [":MojoIOSAppSources"],
+)
+
+ios_unit_test(
+    name = "MojoIOSAppTests",
+    minimum_os_version = "17.0",
+    deps = [":MojoIOSAppTestsSources"],
+)
+
+swift_library(
+    name = "MojoIOSAppUITestsSources",
+    testonly = True,
+    srcs = ["MojoIOSAppUITests.swift"],
+    module_name = "MojoIOSAppUITestsSources",
+)
+
+ios_ui_test(
+    name = "MojoIOSAppUITests",
+    minimum_os_version = "17.0",
+    test_host = ":MojoIOSApp",
+    deps = [":MojoIOSAppUITestsSources"],
+)
+
+exports_files(["run_bazel_ios_app.sh"])

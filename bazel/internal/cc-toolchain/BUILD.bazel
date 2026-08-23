@@ -128,9 +128,18 @@ cc_sysroot(
             "//bazel/internal/cc-toolchain/features:parse_headers_shim",
             "//bazel/internal/cc-toolchain/features:opt_feature",
             "@rules_cc//cc/toolchains/args:experimental_replace_legacy_action_config_features",
-            "//bazel/internal/cc-toolchain/features:supports_start_end_lib",  # https://github.com/bazelbuild/rules_cc/issues/322
             "//bazel/internal/cc-toolchain/args/interface-libraries",
-        ],
+        ] + select({
+            # rules_apple can then pass normal C++ libraries_to_link variables
+            # instead of its legacy filelist-only ObjC linker contract.
+            "@platforms//os:ios": [
+                "//bazel/internal/cc-toolchain/features:use_cpp_variables_for_objc_executable",
+            ],
+            # Apple ld does not implement GNU/LLD's --start-lib/--end-lib.
+            "//conditions:default": [
+                "//bazel/internal/cc-toolchain/features:supports_start_end_lib",
+            ],
+        }),
         known_features = [
             # Only optional features need to be included here
             "//bazel/internal/cc-toolchain/features:asan",
@@ -164,6 +173,15 @@ cc_sysroot(
         module_map = "//bazel/internal/cc-toolchain/tools:builtin_module_map",
         supports_header_parsing = True,
         tags = [TOP_LEVEL_TAG],  # Used below, unclear why this is needed
+        # rules_swift reads this through CcToolchainInfo to select the matching
+        # Apple Swift SDK. The target flags alone are not provider metadata.
+        target_system_name = select({
+            "//:ios_device_arm64": "arm64-apple-ios17.0",
+            "//:ios_simulator_arm64": "arm64-apple-ios17.0-simulator",
+            "//:linux_aarch64": "aarch64-unknown-linux-gnu",
+            "//:linux_x86_64": "x86_64-unknown-linux-gnu",
+            "@platforms//os:macos": "arm64-apple-macosx",
+        }),
         tool_map = "//bazel/internal/cc-toolchain/tools:{}_tools".format(platform),
     )
     for platform in PLATFORMS

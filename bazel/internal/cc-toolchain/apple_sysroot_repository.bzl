@@ -22,10 +22,13 @@ filegroup(name = "directory", srcs = [], visibility = ["//visibility:public"])
     for child in sdk_path.readdir(watch = "no"):
         rctx.symlink(child, "sysroot/" + child.basename)
 
-    framework_includes = [
-        "System/Library/Frameworks/{}.framework/**".format(name)
-        for name in rctx.attr.frameworks
-    ]
+    if rctx.attr.include_all_frameworks:
+        framework_includes = ["System/Library/Frameworks/**"]
+    else:
+        framework_includes = [
+            "System/Library/Frameworks/{}.framework/**".format(name)
+            for name in rctx.attr.frameworks
+        ]
     rctx.file("sysroot/BUILD.bazel", """\
 load("@bazel_skylib//rules/directory:directory.bzl", "directory")
 
@@ -42,6 +45,7 @@ apple_sysroot_repository = repository_rule(
     implementation = _apple_sysroot_repository_impl,
     attrs = {
         "frameworks": attr.string_list(),
+        "include_all_frameworks": attr.bool(),
         "sdk_name": attr.string(mandatory = True),
     },
     environ = ["XCODE_VERSION", "DEVELOPER_DIR"],

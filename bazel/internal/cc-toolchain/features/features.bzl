@@ -11,4 +11,5 @@ MARKER_FEATURES = [
     "set_soname",
     "supports_start_end_lib",
     "sysroot",  # Stop duplicate sysroot confusion until legacy features are disabled
+    "use_cpp_variables_for_objc_executable",
 ]

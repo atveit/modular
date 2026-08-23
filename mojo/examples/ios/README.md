@@ -1,5 +1,19 @@
 # Runtime-free Mojo iOS Simulator fixture
 
+## Canonical Bazel SwiftUI app (N9)
+
+The root `rules_apple`/`rules_swift` app, XCTest, and XCUITest targets are under
+`bazel_app/`. This command builds the same-graph Mojo/SwiftUI IPA, asserts both
+Mojo exports and both visible values, then installs, launches, and captures the
+app in an arm64 Simulator:
+
+```sh
+mojo/examples/ios/bazel_app/run_bazel_ios_app.sh
+```
+
+See [bazel_app/README.md](bazel_app/README.md) for destination overrides and
+the exact evidence boundary.
+
 ## Canonical sandboxed archives (N8)
 
 The target-configured archive gate uses the registered Mojo and C++ toolchains

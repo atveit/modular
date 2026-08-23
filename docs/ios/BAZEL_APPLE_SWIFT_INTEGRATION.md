@@ -1,8 +1,7 @@
 # Bazel Apple/Swift integration
 
 This note records the completed N6 dependency-owner migration, N7 root iOS C++
-toolchain, and N8 sandboxed same-graph archives. The canonical
-`ios_application` remains N9.
+toolchain, N8 sandboxed same-graph archives, and N9 canonical SwiftUI app.
 
 ## Current checkout evidence
 
@@ -96,8 +95,8 @@ pre-release.
 | `rules_apple` 5.0.0-rc3 / `rules_swift` 4.0.0-rc5 | Graph, KGEN/CompilerRT/iOS archives, and focused tests pass; minimal UIKit query reaches the repo-owned `macos_clang_toolchain` and stops because its configurable args have no iOS/default branch | Selected N6 pair; clears the Apple transition blocker and selects apple_support 2.8.1 plus protobuf 34.0.bcr.1 |
 
 That N6 dependency-owner step is now promoted with protobuf 34 and the old
-patch removed. N7 target-aware C++ toolchain support and N8 same-graph Mojo
-and serial-core archives are also complete; the next step is N9, the canonical app. A local
+protobuf patch removed. N7 target-aware C++ toolchain support, N8 same-graph
+Mojo and serial-core archives, and the N9 canonical app are complete. A local
 transition patch or an older Apple-rules pin remains an unsafe substitute.
 
 The 5.0.0-rc3/4.0.0-rc5 pair now reaches a root toolchain with declared,
@@ -117,7 +116,30 @@ queries both iOS SDK repositories with UIKit and passes. The existing
 `macos_sysroot_repository` remains unchanged; the generic rule is now
 registered twice and selected by the exact root iOS toolchains.
 
-## Present blockers and next action
+## Canonical app result and next action
+
+`mojo/examples/ios/bazel_app/run_bazel_ios_app.sh` is the N9 gate. It builds a
+root `swift_library`/`ios_application`, runs XCTest against both Mojo C exports,
+runs XCUITest against the exact visible greeting and calculation, verifies the
+final Mach-O/symbol/signing/link evidence, and installs, launches, and captures
+the app on an arm64 Simulator. The app pulls one bounded serial-core archive
+through an explicit initializer anchor. That initializer is not
+`std.runtime.initialize_runtime()` and does not establish AsyncRT support.
+
+Two compatibility details remain deliberately explicit. The selected
+rules_apple release candidate needs a small Bazel-10 linkstamp API patch until
+upstream carries the same fallback. Swift application linking uses Xcode's
+Apple linker via the repository wrapper so Swift autolink and SDK framework
+re-exports resolve correctly. The SDK repository declares the full public
+framework tree for that closure. N8 compile/archive actions remain sandboxed
+and free of action-time `xcrun`; the final application link is local-Xcode
+reproducible, not a remote-hermetic claim.
+
+The next action is N10: merge each Mojo/serial-core platform pair into one
+static product, create an XCFramework, wrap it in a local Swift Package, and
+run a clean Simulator consumer with no Mojo compiler or Modular installation.
+
+## Historical blockers
 
 The direct repositories are now visible as `@build_bazel_rules_apple` and
 `@build_bazel_rules_swift`. The repository-rule mismatch that previously
@@ -136,9 +158,8 @@ do not correspond to valid settings
 ```
 
 That nested diagnostic remains historical evidence. The root now uses the
-selected 5.0.0-rc3/4.0.0-rc5 pair, the completed N7 iOS C++ toolchain, and N8
-sandboxed same-graph Mojo/core-runtime archives. Its next action is N9's Swift
-library/application/XCTest/UI targets.
+selected 5.0.0-rc3/4.0.0-rc5 pair, the completed N7 iOS C++ toolchain, N8
+sandboxed same-graph Mojo/core-runtime archives, and the passing N9 app.
 
 ## Archive-consumer control
 

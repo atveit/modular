@@ -42,6 +42,15 @@ bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.1")
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1", dev_dependency = True)
 
+# rules_apple's modern ObjC link path still calls the pre-Bazel-10
+# CcLinkingContext.linkstamps() API. Remove this when the selected release
+# carries the same linker-input fallback as its legacy path.
+single_version_override(
+    module_name = "rules_apple",
+    patch_strip = 1,
+    patches = ["//bazel/public-patches:rules_apple-cc-linkstamps.patch"],
+)
+
 archive_override(
     module_name = "rules_cc",
     integrity = "sha256-xPt/jPo70Y+LPhowjcTLhMxwtkZtw7QBwO969n7mWPo=",

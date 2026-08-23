@@ -23,39 +23,13 @@ apple_sysroot_repository = use_repo_rule("//bazel/internal/cc-toolchain:apple_sy
 
 apple_sysroot_repository(
     name = "sysroot-ios-device",
-    frameworks = [
-        "Accelerate",
-        "CoreFoundation",
-        "CoreGraphics",
-        "CoreText",
-        "Foundation",
-        "ImageIO",
-        "Metal",
-        "QuartzCore",
-        "Security",
-        "SystemConfiguration",
-        "UIKit",
-        "UniformTypeIdentifiers",
-    ],
+    include_all_frameworks = True,
     sdk_name = "iphoneos",
 )
 
 apple_sysroot_repository(
     name = "sysroot-ios-simulator",
-    frameworks = [
-        "Accelerate",
-        "CoreFoundation",
-        "CoreGraphics",
-        "CoreText",
-        "Foundation",
-        "ImageIO",
-        "Metal",
-        "QuartzCore",
-        "Security",
-        "SystemConfiguration",
-        "UIKit",
-        "UniformTypeIdentifiers",
-    ],
+    include_all_frameworks = True,
     sdk_name = "iphonesimulator",
 )
 

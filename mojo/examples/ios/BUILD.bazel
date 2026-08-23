@@ -25,6 +25,7 @@ _IOS_TARGET_TRIPLE = select({
 # target triple, and Mach-O platform; these actions do not discover Xcode tools.
 mojo_ios_archive(
     name = "mojo_ios_archive",
+    aspect_hints = ["@build_bazel_rules_swift//swift:auto_module"],
     src = "mojo_ios_smoke.mojo",
     header = "mojo_ios_smoke.h",
     tags = ["manual"],

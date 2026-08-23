@@ -46,7 +46,34 @@ for arg in "$@"; do
   esac
 done
 
-"$clang" "${linker_args[@]}"
+linker="$clang"
+for arg in "${linker_args[@]}"; do
+  if [[ "$arg" == --target=*-apple-ios* ]]; then
+    if [[ "$arg" == *-simulator ]]; then
+      apple_sdk="iphonesimulator"
+    else
+      apple_sdk="iphoneos"
+    fi
+    developer_dir="$(/usr/bin/xcode-select -p)"
+    sdk_root="$(/usr/bin/xcrun --sdk "$apple_sdk" --show-sdk-path)"
+    apple_linker_args=()
+    for linker_arg in "${linker_args[@]}"; do
+      # Let Xcode clang select its matching CompilerRT. The repository Clang
+      # resource directory does not contain Apple's iOS/iOSSimulator builtins.
+      if [[ "$linker_arg" == -resource-dir=* ]]; then
+        continue
+      fi
+      linker_arg="${linker_arg//__BAZEL_XCODE_DEVELOPER_DIR__/$developer_dir}"
+      linker_arg="${linker_arg//__BAZEL_XCODE_SDKROOT__/$sdk_root}"
+      apple_linker_args+=("$linker_arg")
+    done
+    linker="/usr/bin/xcrun"
+    linker_args=(--sdk "$apple_sdk" clang++ "${apple_linker_args[@]}")
+    break
+  fi
+done
+
+"$linker" "${linker_args[@]}"
 
 if [[ -n "$dsym_path" ]]; then
   "$dsymutil" -o "$dsym_path" "$binary_path"

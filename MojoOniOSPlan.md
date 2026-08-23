@@ -240,13 +240,14 @@ line, artifact hashes, symbol/load-command checks, test result, and known
 limitations. This makes each checkpoint independently auditable by a skeptical
 consumer.
 
-**Current checkpoint:** D0–D2 and the narrow D6 allocator/String Simulator
-launch are demonstrated by checked-in shell probes. The direct SwiftUI
-source/link harness has also been installed and launched in an arm64 iPhone 17
-Pro Simulator; the captured screen shows the Mojo-returned greeting and
-`20 + 22 = 42`. D3's stricter canonical exit gate—`rules_apple`/`rules_swift`
-integration plus XCTest/UI-test assertions—remains open. D4 is implemented in
-the compiler and stdlib;
+**Current checkpoint:** D0–D3 and the narrow D6 allocator/String Simulator
+launch are demonstrated by checked-in gates. The canonical root
+`rules_apple`/`rules_swift` SwiftUI app has been installed and launched in an
+arm64 iPhone 17 Pro Simulator; XCTest validates both Mojo C exports, XCUITest
+asserts the exact visible greeting and `20 + 22 = 42`, and the runner captures
+a screenshot. The app also links and calls the bounded serial-core initializer,
+which is not `std.runtime.initialize_runtime()` or AsyncRT. D4 is implemented
+in the compiler and stdlib;
 focused KGEN and iOS-target Bazel tests pass, while broader cross-target
 coverage remains. The repository-built driver also emits a genuine static
 archive directly with `--emit static-lib` for both the Simulator and device
@@ -560,7 +561,7 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1–N8 are complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1–N9 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
 `KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
@@ -604,7 +605,18 @@ the Darwin sandbox and do not perform action-time `xcrun` discovery or request
 `local`/`no-sandbox`. Real emitted-Mojo global and Error Simulator probes still
 pass after the iOS global ABI shed its LLVM `StringRef` header dependency.
 
-The immediate coding order is now N9, followed by N10 packaging. N11
+N9 adds the canonical root `swift_library`, `ios_application`, XCTest, and
+XCUITest targets. One runner builds the same-graph Mojo and bounded serial-core
+dependencies, executes both test bundles, verifies both Mojo exports and the
+serial initializer in the final image, installs and launches on an arm64
+iPhone Simulator, and captures a screenshot. XCTest asserts the C-ABI values
+and XCUITest asserts the exact visible greeting and calculation. The final
+Swift application link uses Xcode's Apple linker through the repository
+wrapper for Swift autolink and SDK re-exports; this is bounded local-Xcode
+reproducibility, not a remote-hermetic link claim. It does not exercise
+`std.runtime.initialize_runtime()`, AsyncRT, or a physical device.
+
+The immediate coding order is now N10 packaging, followed by N11. N11
 must begin with dependency isolation, but N12 cannot be declared complete until
 the real public `OptionalPointer` ABI and CPU-device semantics execute. Physical
 device work is still valuable but is not a prerequisite for N1–N13.
