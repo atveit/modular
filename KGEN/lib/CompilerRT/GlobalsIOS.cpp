@@ -10,7 +10,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "Support/SymbolExport.h"
-#include "llvm/ADT/StringRef.h"
 
 #include <array>
 #include <cassert>
@@ -22,6 +21,16 @@
 #include <vector>
 
 namespace {
+
+// The exported functions have C linkage, and Mojo lowers its StringRef carrier
+// as this pointer/length pair. Keep the iOS runtime ABI independent of LLVM
+// headers so a mobile app does not inherit the desktop LLVM Support graph.
+struct IOSStringRef {
+  const char *data;
+  size_t size;
+};
+static_assert(sizeof(IOSStringRef) == 2 * sizeof(void *));
+static_assert(alignof(IOSStringRef) == alignof(void *));
 
 struct NamedEntry {
   void *value;
@@ -48,12 +57,12 @@ std::vector<std::string> &namedDestructionOrder() {
   return order;
 }
 
-void *getOrCreateNamed(llvm::StringRef name, void *(*initFn)(),
+void *getOrCreateNamed(IOSStringRef name, void *(*initFn)(),
                        void (*destroyFn)(void *)) {
   std::lock_guard<std::recursive_mutex> lock(globalMutex());
   if (isDestroyingGlobals())
     return nullptr;
-  std::string key(name.data(), name.size());
+  std::string key(name.data, name.size);
   auto &entries = namedEntries();
   if (auto existing = entries.find(key); existing != entries.end())
     return existing->second.value;
@@ -85,22 +94,22 @@ std::array<IndexedEntry, kNumIndexedGlobals> indexedEntries;
 } // namespace
 
 COMPILERRT_EXPORT COMPILERRT_VISIBILITY_EXPORT void *
-KGEN_CompilerRT_GetOrCreateGlobal(llvm::StringRef name, void *(*initFn)(),
+KGEN_CompilerRT_GetOrCreateGlobal(IOSStringRef name, void *(*initFn)(),
                                   void (*destroyFn)(void *)) {
   return getOrCreateNamed(name, initFn, destroyFn);
 }
 
 COMPILERRT_EXPORT COMPILERRT_VISIBILITY_EXPORT void *
-KGEN_CompilerRT_GetGlobalOrNull(llvm::StringRef name) {
+KGEN_CompilerRT_GetGlobalOrNull(IOSStringRef name) {
   return getOrCreateNamed(name, nullptr, nullptr);
 }
 
 COMPILERRT_EXPORT COMPILERRT_VISIBILITY_EXPORT void
-KGEN_CompilerRT_InsertGlobal(llvm::StringRef name, void *value) {
+KGEN_CompilerRT_InsertGlobal(IOSStringRef name, void *value) {
   std::lock_guard<std::recursive_mutex> lock(globalMutex());
   if (isDestroyingGlobals())
     return;
-  std::string key(name.data(), name.size());
+  std::string key(name.data, name.size);
   auto [unused, inserted] =
       namedEntries().emplace(key, NamedEntry{value, nullptr});
   (void)unused;

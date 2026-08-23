@@ -4,14 +4,52 @@ load(
     "compilerrt_ios_static_archive",
 )
 load(":mojo_ios_static_library.bzl", "mojo_ios_static_library")
+load(":hermetic_ios_archives.bzl", "compilerrt_ios_core", "mojo_ios_archive")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 
 package(default_visibility = ["//visibility:public"])
 
-# This is intentionally a source fixture rather than a runnable Bazel iOS
-# target.  The repository does not yet register rules_apple/rules_swift, and
-# the Mojo toolchain currently has macOS-only executable-link behavior.  The
-# shell harness performs the target-object/archive/link smoke test with the
-# host Mojo compiler and Xcode's iPhone Simulator SDK.
+exports_files(["run_hermetic_ios_archives.sh"])
+
+_IOS_TARGET_CPU = select({
+    "//:ios_device_arm64": "apple-a7",
+    "//:ios_simulator_arm64": "apple-m1",
+})
+
+_IOS_TARGET_TRIPLE = select({
+    "//:ios_device_arm64": "arm64-apple-ios17.0",
+    "//:ios_simulator_arm64": "arm64-apple-ios17.0-simulator",
+})
+
+# Canonical N8 archives. The selected Apple platform determines the SDK,
+# target triple, and Mach-O platform; these actions do not discover Xcode tools.
+mojo_ios_archive(
+    name = "mojo_ios_archive",
+    src = "mojo_ios_smoke.mojo",
+    header = "mojo_ios_smoke.h",
+    tags = ["manual"],
+    target_cpu = _IOS_TARGET_CPU,
+    target_triple = _IOS_TARGET_TRIPLE,
+)
+
+compilerrt_ios_core(
+    name = "compilerrt_ios_core",
+    srcs = ["//KGEN:CompilerRTIOSCoreSources"],
+    tags = ["manual"],
+)
+
+cc_binary(
+    name = "hermetic_ios_archive_consumer",
+    srcs = ["hermetic_ios_archive_consumer.c"],
+    tags = ["manual"],
+    deps = [
+        ":compilerrt_ios_core",
+        ":mojo_ios_archive",
+    ],
+)
+
+# Historical source and shell fixtures remain alongside the N8 target-aware
+# archives until N9 replaces the app-level path with canonical Apple rules.
 filegroup(
     name = "ios_simulator_smoke_fixture",
     srcs = [

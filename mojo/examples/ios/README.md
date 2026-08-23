@@ -1,5 +1,22 @@
 # Runtime-free Mojo iOS Simulator fixture
 
+## Canonical sandboxed archives (N8)
+
+The target-configured archive gate uses the registered Mojo and C++ toolchains
+for both Apple mobile platforms:
+
+```sh
+mojo/examples/ios/run_hermetic_ios_archives.sh
+```
+
+It builds a runtime-free Mojo archive, the bounded non-AsyncRT serial core, and
+a same-graph C consumer. The runner checks every archive member's iOS 17 Mach-O
+metadata, deterministic archive timestamps, required/forbidden symbols, the
+final consumer image, and action provenance. Compilation and archiving run in
+the Darwin sandbox with declared local-Xcode repository inputs; they do not use
+action-time `xcrun`, `local`, or `no-sandbox` escapes. This is not remote-Xcode
+execution, app bundling, signing, Simulator launch, or AsyncRT support.
+
 For a complete copy-and-run walkthrough, see
 [MojoOnIOSimulatorTutorial.md](../../../MojoOnIOSimulatorTutorial.md).
 

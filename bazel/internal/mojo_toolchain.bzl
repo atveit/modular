@@ -1,6 +1,5 @@
 """An internal Mojo toolchain to point to our local tools."""
 
-load("@cfg_workaround.bzl", "CFG_WORKAROUND")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_mojo//mojo:providers.bzl", "MojoInfo", "MojoToolchainInfo")
 
@@ -82,13 +81,15 @@ mojo_toolchain = rule(
             allow_files = True,
             mandatory = True,
             executable = True,
-            cfg = CFG_WORKAROUND,  # NOTE: This differs from the rules_mojo toolchain
+            # Mojo and lld are build tools. They must remain runnable on the
+            # execution platform even when host and target share arm64.
+            cfg = "exec",
             doc = "The lld executable to link with.",
         ),
         "mojo": attr.label(
             mandatory = True,
             executable = True,
-            cfg = CFG_WORKAROUND,  # NOTE: This differs from the rules_mojo toolchain
+            cfg = "exec",
             doc = "The mojo compiler executable to build with.",
         ),
         "implicit_deps": attr.label_list(
@@ -100,7 +101,7 @@ mojo_toolchain = rule(
         "compiler_plugin": attr.label(
             mandatory = False,
             allow_single_file = True,
-            cfg = CFG_WORKAROUND,
+            cfg = "exec",
             doc = "Optional compiler plugin (.so) to set via MODULAR_COMPILER_PLUGINS in build actions.",
         ),
         "driver_plugin": attr.label(

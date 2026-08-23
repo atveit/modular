@@ -144,10 +144,11 @@ The runtime plan changes only in sequencing, not architecture:
   `GetCurrentCPUDevice`, `GetOrCreateCPUDevice`, `ReleaseCPUDevice`, and
   `GetOrCreateGlobal`. Upstream did not remove the AsyncRT/thread-pool/allocator
   dependency boundary.
-- The root `rules_apple`/`rules_swift` and Apple C++ toolchain migration remains
-  unresolved. Until that dependency-owner work is approved, the target-correct
-  CompilerRT archive actions remain explicit local Xcode diagnostics and D6 is
-  prioritized over additional framework breadth.
+- The root `rules_apple`/`rules_swift` migration, Apple C++ toolchains, and N8
+  same-graph archive actions are now complete. The runtime-free Mojo and
+  bounded serial-core archives build for both mobile platforms from declared
+  SDK inputs inside the Darwin sandbox and return `CcInfo`; N9 is the next app
+  integration gate.
 
 ## Support Contract
 
@@ -559,7 +560,7 @@ must preserve every earlier exit gate.
 | N14 | Physical-device tracer/package | Run D5a/D5b and the serial core package on a signed iPhone and iPad; keep signing data outside the repository. | Captured device launch and visible Mojo result, followed by the same XCFramework consumer on device. TestFlight remains optional after this gate. |
 | N15 | Device benchmarks and accelerator continuation | Run Swift/Mojo scalar, SIMD, allocation, C-boundary, and threading benchmarks; then resume Core ML, Metal, and SDK-coverage deliveries. | Reproducible device reports meet the D7 thresholds or contain a root-caused issue; no Simulator or unprofiled ANE performance claim. |
 
-**Execution progress:** N1–N7 are complete. The allocating String, Error, `_Global`,
+**Execution progress:** N1–N8 are complete. The allocating String, Error, `_Global`,
 and combined environment/file objects now have exact undefined-symbol
 allow-lists for both iOS triples, and the gate rejects every
 `KGEN_CompilerRT_AsyncRT_*` dependency. The serial core now has an explicit
@@ -594,9 +595,16 @@ builds both raw Mach-O variants, verifies `IOS`/`IOSSIMULATOR` plus minimum iOS
 The always-on mypy aspect also resolves its type-wheel inputs in the execution
 configuration, so normal root Bazel commands cross-analyze successfully.
 Sanitizer runtimes remain explicitly outside the supported iOS target profile.
-N8 is next.
+N8 adds target-configured `mojo_ios_archive` and `compilerrt_ios_core` rules.
+They use the registered Mojo and Apple C++ toolchains, produce deterministic
+device and Simulator archives with exact `IOS`/`IOSSIMULATOR` iOS 17 member
+metadata, return `CcInfo`, and link a same-graph C consumer for both platforms.
+Their compile/archive actions use declared local-Xcode repository inputs inside
+the Darwin sandbox and do not perform action-time `xcrun` discovery or request
+`local`/`no-sandbox`. Real emitted-Mojo global and Error Simulator probes still
+pass after the iOS global ABI shed its LLVM `StringRef` header dependency.
 
-The immediate coding order is now N8 and N9, followed by N10 packaging. N11
+The immediate coding order is now N9, followed by N10 packaging. N11
 must begin with dependency isolation, but N12 cannot be declared complete until
 the real public `OptionalPointer` ABI and CPU-device semantics execute. Physical
 device work is still valuable but is not a prerequisite for N1–N13.

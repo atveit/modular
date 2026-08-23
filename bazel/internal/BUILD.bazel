@@ -164,6 +164,8 @@ mojo_copts_toolchain(
         "@platforms//os:macos": [
             "--target-cpu=apple-m1",
         ],
+        # iOS target identity is supplied by the target-configured archive rule.
+        "@platforms//os:ios": [],
     }) + select({
         "//:asan": ["--sanitize=address"],
         "//:tsan": ["--sanitize=thread"],

@@ -1,7 +1,8 @@
 # Bazel Apple/Swift integration
 
-This note records the completed N6 dependency-owner migration and N7 root iOS
-C++ toolchain. The canonical `ios_application` remains N9.
+This note records the completed N6 dependency-owner migration, N7 root iOS C++
+toolchain, and N8 sandboxed same-graph archives. The canonical
+`ios_application` remains N9.
 
 ## Current checkout evidence
 
@@ -95,8 +96,8 @@ pre-release.
 | `rules_apple` 5.0.0-rc3 / `rules_swift` 4.0.0-rc5 | Graph, KGEN/CompilerRT/iOS archives, and focused tests pass; minimal UIKit query reaches the repo-owned `macos_clang_toolchain` and stops because its configurable args have no iOS/default branch | Selected N6 pair; clears the Apple transition blocker and selects apple_support 2.8.1 plus protobuf 34.0.bcr.1 |
 
 That N6 dependency-owner step is now promoted with protobuf 34 and the old
-patch removed. N7 target-aware C++ toolchain support is also complete; the
-remaining sequence is N8 same-graph Mojo archives and N9 the canonical app. A local
+patch removed. N7 target-aware C++ toolchain support and N8 same-graph Mojo
+and serial-core archives are also complete; the next step is N9, the canonical app. A local
 transition patch or an older Apple-rules pin remains an unsafe substitute.
 
 The 5.0.0-rc3/4.0.0-rc5 pair now reaches a root toolchain with declared,
@@ -135,8 +136,8 @@ do not correspond to valid settings
 ```
 
 That nested diagnostic remains historical evidence. The root now uses the
-selected 5.0.0-rc3/4.0.0-rc5 pair and the completed N7 iOS C++ toolchain. Its
-next action is N8's same-graph Mojo/core-runtime archive, then N9's Swift
+selected 5.0.0-rc3/4.0.0-rc5 pair, the completed N7 iOS C++ toolchain, and N8
+sandboxed same-graph Mojo/core-runtime archives. Its next action is N9's Swift
 library/application/XCTest/UI targets.
 
 ## Archive-consumer control
