@@ -324,6 +324,13 @@ whose `-stdlib` select is Linux/macOS-only; more macOS-only compile/link/rpath
 and sanitizer selects remain. The next step is an owner-reviewed complete
 target-aware iOS C++ toolchain branch, not a root dependency upgrade or a
 macOS fallback.
+The first reusable toolchain building block is now available without changing
+the root module graph: `bazel/internal/cc-toolchain/apple_sysroot_repository.bzl`
+resolves an explicit Xcode SDK name and an explicit framework allowlist. Its
+diagnostic passes `iphonesimulator` and `iphoneos` with UIKit, while the legacy
+macOS sysroot rule remains unchanged. This removes the hard-coded
+`ApplicationServices.framework` assumption from future iOS sysroots, but does
+not yet register an iOS C++ toolchain or build an Apple-rule app.
 That isolated control now also imports the generated runtime-free Mojo archive
 through `cc_import`, compiles a C caller of `mojo_add`, and builds a minimal
 Swift/iOS Simulator IPA. This proves that the archive is consumable by the

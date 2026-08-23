@@ -1,0 +1,14 @@
+module(name = "apple_sysroot_repository_diagnostic", version = "0.0.0")
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+
+apple_sysroot_repository = use_repo_rule(
+    "//:apple_sysroot_repository.bzl",
+    "apple_sysroot_repository",
+)
+
+apple_sysroot_repository(
+    name = "apple-sdk-diagnostic",
+    frameworks = ["UIKit"],
+    sdk_name = "__SDK_NAME__",
+)

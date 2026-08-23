@@ -110,6 +110,16 @@ broad macOS-toolchain fallback a root change solely from this control; its
 dependency churn is material and the control still has no Mojo app/runtime
 claim.
 
+One reusable prerequisite is now checked in independently of that dependency
+decision: `bazel/internal/cc-toolchain/apple_sysroot_repository.bzl` resolves
+an explicit `macosx`, `iphoneos`, or `iphonesimulator` SDK and accepts an
+explicit framework allowlist. The diagnostic
+`bazel/internal/cc-toolchain/run_apple_sysroot_repository_diagnostic.sh`
+queries both iOS SDK repositories with UIKit and passes. The existing
+`macos_sysroot_repository` remains unchanged, and the new rule is not yet
+registered in the root module or selected by a C++ toolchain. This is a
+sysroot-repository fix, not root Apple app integration.
+
 ## Present blockers and next action
 
 The direct-repository queries fail because the aliases are absent, despite the

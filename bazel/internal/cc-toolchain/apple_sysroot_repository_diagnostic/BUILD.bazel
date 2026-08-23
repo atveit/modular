@@ -1,0 +1,2 @@
+# Establishes the temporary module's main package so MODULE.bazel can load the
+# copied repository rule. The diagnostic intentionally declares no targets.
